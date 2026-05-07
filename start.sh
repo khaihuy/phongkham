@@ -1,13 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "🔄 Initializing database..."
-
-# Run migrations (or create schema with db push if migrations don't exist)
-if ! ./node_modules/.bin/prisma migrate deploy; then
-  echo "⚠️  migrate deploy failed, trying db push..."
-  ./node_modules/.bin/prisma db push --skip-generate || true
-fi
+echo "🔄 Initializing database schema..."
+./node_modules/.bin/prisma db push --skip-generate --accept-data-loss
 
 echo "🌱 Seeding database..."
 ./node_modules/.bin/tsx prisma/seed.ts
