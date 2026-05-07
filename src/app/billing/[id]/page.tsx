@@ -220,6 +220,7 @@ export default function InvoiceDetailPage() {
             </div>
           </form>
         </Modal>
+        </div>
       )}
     </div>
   );

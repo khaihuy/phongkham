@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDashboard } from '@/hooks/use-dashboard';
 import { TrendingUp, FileText, Download, Loader, AlertCircle } from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, startOfDay, subMonths } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', notation: 'compact' }).format(v);
@@ -14,36 +16,82 @@ function formatFull(v: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 }
 
+function todayStr() {
+  return format(new Date(), 'yyyy-MM-dd');
+}
+
+function firstOfMonthStr() {
+  return format(startOfMonth(new Date()), 'yyyy-MM-dd');
+}
+
+function firstOfLastMonthStr() {
+  return format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd');
+}
+
+function lastOfLastMonthStr() {
+  return format(endOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd');
+}
+
 export default function ReportsPage() {
   const { data: dashboard, isLoading, error } = useDashboard();
-  const [revenueData, setRevenueData] = useState<any[]>([]);
-  const [summary, setSummary] = useState<any>(null);
   const [tab, setTab] = useState<'revenue' | 'appointments'>('revenue');
-  const [loadingRevenue, setLoadingRevenue] = useState(false);
 
-  useEffect(() => {
-    async function fetchRevenue() {
-      setLoadingRevenue(true);
-      const dateFrom = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      const dateTo = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-      try {
-        const res = await fetch(`/api/reports/revenue?dateFrom=${dateFrom}&dateTo=${dateTo}`);
-        const json = await res.json();
-        const rd = json.data?.data ?? [];
-        setRevenueData(rd.map((d: any) => ({
-          date: d.date.slice(5), // MM-DD
-          'Đã thu': Number(d.paid),
-          'Chờ thu': Number(d.pending),
-        })));
-        setSummary(json.data?.summary);
-      } catch {
-        // ignore
-      } finally {
-        setLoadingRevenue(false);
-      }
-    }
-    fetchRevenue();
-  }, []);
+  // Date range state
+  const [dateFrom, setDateFrom] = useState(firstOfMonthStr());
+  const [dateTo, setDateTo] = useState(todayStr());
+  // Applied range (triggers refetch)
+  const [appliedFrom, setAppliedFrom] = useState(firstOfMonthStr());
+  const [appliedTo, setAppliedTo] = useState(todayStr());
+
+  function applyRange() {
+    setAppliedFrom(dateFrom);
+    setAppliedTo(dateTo);
+  }
+
+  function setPreset(from: string, to: string) {
+    setDateFrom(from);
+    setDateTo(to);
+    setAppliedFrom(from);
+    setAppliedTo(to);
+  }
+
+  // Revenue query
+  const { data: revenueResult, isLoading: loadingRevenue } = useQuery({
+    queryKey: ['reports-revenue', appliedFrom, appliedTo],
+    queryFn: async () => {
+      const res = await fetch(`/api/reports/revenue?dateFrom=${appliedFrom}&dateTo=${appliedTo}`);
+      const json = await res.json();
+      return json;
+    },
+    enabled: !!appliedFrom && !!appliedTo,
+  });
+
+  const rawRevenueData: any[] = revenueResult?.data?.data ?? [];
+  const summary = revenueResult?.data?.summary ?? null;
+
+  const revenueChartData = rawRevenueData.map((d: any) => ({
+    date: d.date.slice(5), // MM-DD
+    'Đã thu': Number(d.paid),
+    'Chờ thu': Number(d.pending),
+    _raw: d,
+  }));
+
+  function exportExcel() {
+    if (!rawRevenueData.length) return;
+
+    const rows = rawRevenueData.map((d: any) => ({
+      'Ngày': d.date,
+      'Tổng tiền': Number(d.total ?? (Number(d.paid) + Number(d.pending))),
+      'Đã thu': Number(d.paid),
+      'Chờ thu': Number(d.pending),
+      'Số hóa đơn': Number(d.invoiceCount ?? 0),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Doanh thu');
+    XLSX.writeFile(wb, `bao-cao-doanh-thu-${appliedFrom}-${appliedTo}.xlsx`);
+  }
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
@@ -68,9 +116,14 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Báo cáo</h1>
-        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-          <Download className="w-4 h-4" /> Xuất Excel
-        </button>
+        {revenueChartData.length > 0 && (
+          <button
+            onClick={exportExcel}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 font-medium"
+          >
+            <Download className="w-4 h-4" /> Xuất Excel
+          </button>
+        )}
       </div>
 
       {/* Summary cards */}
@@ -106,10 +159,67 @@ export default function ReportsPage() {
       </div>
 
       {tab === 'revenue' && (
-        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm space-y-4">
+          {/* Date range picker */}
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 whitespace-nowrap">Từ ngày</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 whitespace-nowrap">Đến ngày</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+              />
+            </div>
+            <button
+              onClick={applyRange}
+              className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Áp dụng
+            </button>
+            {/* Presets */}
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => setPreset(todayStr(), todayStr())}
+                className="px-3 py-2 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600"
+              >
+                Hôm nay
+              </button>
+              <button
+                onClick={() => setPreset(format(subDays(new Date(), 6), 'yyyy-MM-dd'), todayStr())}
+                className="px-3 py-2 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600"
+              >
+                7 ngày
+              </button>
+              <button
+                onClick={() => setPreset(firstOfMonthStr(), todayStr())}
+                className="px-3 py-2 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600"
+              >
+                Tháng này
+              </button>
+              <button
+                onClick={() => setPreset(firstOfLastMonthStr(), lastOfLastMonthStr())}
+                className="px-3 py-2 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600"
+              >
+                Tháng trước
+              </button>
+            </div>
+          </div>
+
+          {/* Chart header */}
+          <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-sky-600" /> Doanh thu tháng {new Date().getMonth() + 1}
+              <TrendingUp className="w-4 h-4 text-sky-600" />
+              Doanh thu {appliedFrom} — {appliedTo}
             </h2>
             {summary && (
               <div className="text-sm text-gray-500">
@@ -118,21 +228,52 @@ export default function ReportsPage() {
               </div>
             )}
           </div>
+
           {loadingRevenue ? (
             <div className="flex items-center justify-center h-48">
               <Loader className="w-6 h-6 animate-spin text-sky-600" />
             </div>
-          ) : revenueData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={revenueData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={v => formatCurrency(v)} tick={{ fontSize: 11 }} width={80} />
-                <Tooltip formatter={(v: any) => formatFull(v)} />
-                <Bar dataKey="Đã thu" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Chờ thu" fill="#fbbf24" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          ) : revenueChartData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={revenueChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={v => formatCurrency(v)} tick={{ fontSize: 11 }} width={80} />
+                  <Tooltip formatter={(v: any) => formatFull(v)} />
+                  <Bar dataKey="Đã thu" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Chờ thu" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+
+              {/* Revenue table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-2 text-left font-semibold text-gray-700">Ngày</th>
+                      <th className="px-4 py-2 text-right font-semibold text-gray-700">Tổng tiền</th>
+                      <th className="px-4 py-2 text-right font-semibold text-gray-700">Đã thu</th>
+                      <th className="px-4 py-2 text-right font-semibold text-gray-700">Chờ thu</th>
+                      <th className="px-4 py-2 text-right font-semibold text-gray-700">Số hóa đơn</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {rawRevenueData.map((d: any, i: number) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 text-gray-800">{d.date}</td>
+                        <td className="px-4 py-2 text-right text-gray-800">
+                          {formatFull(Number(d.total ?? (Number(d.paid) + Number(d.pending))))}
+                        </td>
+                        <td className="px-4 py-2 text-right text-green-600">{formatFull(Number(d.paid))}</td>
+                        <td className="px-4 py-2 text-right text-amber-600">{formatFull(Number(d.pending))}</td>
+                        <td className="px-4 py-2 text-right text-gray-600">{d.invoiceCount ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <div className="flex items-center justify-center h-48 text-gray-400">Chưa có dữ liệu doanh thu</div>
           )}
