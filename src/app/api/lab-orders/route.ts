@@ -37,7 +37,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
               select: {
                 id: true,
                 fullName: true,
-                code: true,
+                patientCode: true,
               },
             },
           },
@@ -82,7 +82,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       medicalRecord: {
         include: {
           patient: {
-            select: { id: true, fullName: true, code: true },
+            select: { id: true, fullName: true, patientCode: true },
           },
         },
       },

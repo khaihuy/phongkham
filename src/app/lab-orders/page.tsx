@@ -29,8 +29,6 @@ const STATUSES: { value: OrderStatus; label: string }[] = [
   { value: 'COMPLETED', label: 'Hoàn thành' },
 ];
 
-const IMAGING_TYPES = ['X-QUANG', 'SIÊU ÂM', 'CT-SCAN', 'MRI', 'NỘI SOI', 'ĐIỆN TÂM ĐỒ'];
-
 // ─── Lab Orders hooks ───────────────────────────────────────────────────────
 
 function useLabOrders(status: OrderStatus, page: number) {
@@ -131,7 +129,7 @@ interface UpdateResultModalProps {
 
 function UpdateResultModal({ open, onClose, orderId, currentResult, type }: UpdateResultModalProps) {
   const [result, setResult] = useState(currentResult ?? '');
-  const [resultUrl, setResultUrl] = useState('');
+  const [fileUrl, setFileUrl] = useState('');
   const updateLab = useUpdateLabOrder();
   const updateImage = useUpdateImageOrder();
 
@@ -140,18 +138,24 @@ function UpdateResultModal({ open, onClose, orderId, currentResult, type }: Upda
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const data: Record<string, any> = {
-        result,
-        status: 'COMPLETED',
-        completedAt: new Date().toISOString(),
-      };
-      if (type === 'lab') data.resultUrl = resultUrl;
-      else data.imageUrl = resultUrl;
-
       if (type === 'lab') {
-        await updateLab.mutateAsync({ id: orderId, data });
+        await updateLab.mutateAsync({
+          id: orderId,
+          data: {
+            result,
+            status: 'COMPLETED',
+            resultDate: new Date().toISOString(),
+          },
+        });
       } else {
-        await updateImage.mutateAsync({ id: orderId, data });
+        await updateImage.mutateAsync({
+          id: orderId,
+          data: {
+            findings: result,
+            status: 'COMPLETED',
+            ...(fileUrl && { imageUrl: fileUrl }),
+          },
+        });
       }
       toast.success('Cập nhật kết quả thành công');
       onClose();
@@ -165,7 +169,7 @@ function UpdateResultModal({ open, onClose, orderId, currentResult, type }: Upda
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Kết quả *
+            {type === 'lab' ? 'Kết quả xét nghiệm' : 'Kết quả / Nhận xét'} *
           </label>
           <textarea
             value={result}
@@ -176,19 +180,21 @@ function UpdateResultModal({ open, onClose, orderId, currentResult, type }: Upda
             placeholder="Nhập kết quả..."
           />
         </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            {type === 'lab' ? 'URL kết quả' : 'URL hình ảnh'}
-          </label>
-          <input
-            type="text"
-            value={resultUrl}
-            onChange={e => setResultUrl(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
-            placeholder="https://..."
-          />
-        </div>
-        <p className="text-xs text-gray-500">Trạng thái sẽ được chuyển thành <strong>Hoàn thành</strong>.</p>
+        {type === 'image' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">URL hình ảnh</label>
+            <input
+              type="text"
+              value={fileUrl}
+              onChange={e => setFileUrl(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+              placeholder="https://..."
+            />
+          </div>
+        )}
+        <p className="text-xs text-gray-500">
+          Trạng thái sẽ được chuyển thành <strong>Hoàn thành</strong>.
+        </p>
         <div className="flex gap-2">
           <button
             type="submit"
@@ -274,18 +280,18 @@ function OrdersTable({ type, status, page, onPageChange, onUpdateResult }: Order
             ) : (
               orders.map((order: any) => {
                 const patient = order.medicalRecord?.patient;
-                const name = type === 'lab' ? order.testName : order.imagingType;
-                const result = type === 'lab' ? order.result : order.result;
+                const displayName = type === 'lab' ? order.testName : order.imagingType;
+                const resultText = type === 'lab' ? order.result : order.findings;
                 return (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                      {patient?.code ?? order.medicalRecordId.slice(0, 8)}
+                      {patient?.patientCode ?? order.medicalRecordId.slice(0, 8)}
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {patient?.fullName ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-gray-700">
-                      <div>{name}</div>
+                      <div>{displayName}</div>
                       {type === 'lab' && order.testCode && (
                         <div className="text-xs text-gray-400">{order.testCode}</div>
                       )}
@@ -299,15 +305,15 @@ function OrdersTable({ type, status, page, onPageChange, onUpdateResult }: Order
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">
-                      {new Date(order.orderedAt).toLocaleDateString('vi-VN')}
+                      {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                     </td>
                     <td className="px-4 py-3 text-gray-500 max-w-[160px]">
-                      <span className="truncate block">{result ?? '—'}</span>
+                      <span className="truncate block">{resultText ?? '—'}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
                         <button
-                          onClick={() => onUpdateResult(order.id, result ?? '')}
+                          onClick={() => onUpdateResult(order.id, resultText ?? '')}
                           className="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-medium"
                         >
                           Cập nhật kết quả
