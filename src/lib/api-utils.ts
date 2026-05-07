@@ -46,12 +46,12 @@ export function success<T>(
 }
 
 /**
- * Error response wrapper
+ * Error response wrapper — order: code, statusCode, message
  */
 export function error(
   code: string,
-  message: string,
   statusCode: number,
+  message: string,
   details?: Array<{ field: string; message: string }>
 ): ApiError {
   return new ApiError(code, statusCode, message, details)
