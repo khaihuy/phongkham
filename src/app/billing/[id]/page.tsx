@@ -12,12 +12,18 @@ const printStyles = `
 @media print {
   body * { visibility: hidden; }
   #print-area, #print-area * { visibility: visible; }
-  #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  #print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
   .print-hide { display: none !important; }
   .print-show { display: block !important; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #ccc; padding: 6px 10px; font-size: 12px; }
-  thead { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; }
+  .print-show-flex { display: flex !important; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; font-size: 12px; text-align: left; }
+  td.text-right, th.text-right { text-align: right; }
+  .invoice-totals { margin-top: 12px; }
+  .invoice-totals div { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; border-bottom: 1px solid #eee; }
+  .invoice-totals .total-row { font-weight: bold; font-size: 15px; border-top: 2px solid #333; margin-top: 4px; padding-top: 4px; }
+  .paid-stamp { border: 3px solid #16a34a; color: #16a34a; padding: 4px 16px; border-radius: 4px; font-weight: bold; font-size: 16px; text-transform: uppercase; display: inline-block; transform: rotate(-15deg); margin-top: 8px; }
 }
 `;
 
@@ -79,21 +85,50 @@ export default function InvoiceDetailPage() {
     <div className="space-y-6 max-w-3xl mx-auto" id="print-area">
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
 
-      {/* Print-only clinic header */}
-      <div className="print-show hidden border-b-2 border-gray-800 pb-4 mb-4">
-        <div className="text-center">
-          <h2 className="text-xl font-bold uppercase">{clinic?.name ?? 'PHÒNG KHÁM'}</h2>
-          <p className="text-sm">{clinic?.address}{clinic?.phone ? ` | Tel: ${clinic.phone}` : ''}{clinic?.email ? ` | ${clinic.email}` : ''}</p>
-          {clinic?.licenseNo && <p className="text-sm">Giấy phép: {clinic.licenseNo}</p>}
+      {/* Print-only invoice */}
+      <div className="print-show hidden">
+        {/* Clinic header */}
+        <div style={{ borderBottom: '2px solid #1e3a5f', paddingBottom: '12px', marginBottom: '16px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              {clinic?.name ?? 'PHÒNG KHÁM'}
+            </div>
+            <div style={{ fontSize: '12px', marginTop: '4px', color: '#444' }}>
+              {[clinic?.address, clinic?.phone && `ĐT: ${clinic.phone}`, clinic?.email].filter(Boolean).join('  |  ')}
+            </div>
+            {clinic?.licenseNo && (
+              <div style={{ fontSize: '11px', color: '#666' }}>Giấy phép hành nghề: {clinic.licenseNo}</div>
+            )}
+          </div>
         </div>
-        <div className="mt-4 text-center">
-          <h3 className="text-lg font-bold uppercase tracking-widest">Hóa đơn dịch vụ y tế</h3>
-          <div className="flex justify-center gap-8 mt-2 text-sm">
-            <span>Số: <strong>{invoice?.invoiceCode}</strong></span>
+
+        {/* Invoice title */}
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px' }}>
+            Hóa đơn dịch vụ y tế
+          </div>
+          <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', justifyContent: 'center', gap: '32px' }}>
+            <span>Số HD: <strong>{invoice?.invoiceCode}</strong></span>
             <span>Ngày: <strong>{invoice?.issuedAt ? fmtDate(invoice.issuedAt) : fmtDate(invoice?.createdAt)}</strong></span>
           </div>
-          <p className="text-sm mt-1">Bệnh nhân: <strong>{invoice?.patient?.fullName}</strong></p>
         </div>
+
+        {/* Patient info */}
+        <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '8px 12px', marginBottom: '12px', fontSize: '13px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+            <div><span style={{ color: '#666' }}>Bệnh nhân: </span><strong>{invoice?.patient?.fullName}</strong></div>
+            <div><span style={{ color: '#666' }}>Mã BN: </span><strong>{invoice?.patient?.patientCode}</strong></div>
+            <div><span style={{ color: '#666' }}>Người lập: </span><span>{invoice?.createdBy?.fullName}</span></div>
+            <div><span style={{ color: '#666' }}>Ngày lập: </span><span>{fmtDate(invoice?.createdAt)}</span></div>
+          </div>
+        </div>
+
+        {/* Paid stamp for paid invoices */}
+        {invoice?.status === 'PAID' && (
+          <div style={{ textAlign: 'right', marginBottom: '8px' }}>
+            <span className="paid-stamp">Đã thanh toán</span>
+          </div>
+        )}
       </div>
 
       <div className="print-hide flex items-center gap-4">
@@ -183,8 +218,8 @@ export default function InvoiceDetailPage() {
           </button>
         )}
         <button onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-          <Printer className="w-4 h-4" /> In hóa đơn
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm">
+          <Printer className="w-4 h-4" /> In / Xuất PDF
         </button>
       </div>
 

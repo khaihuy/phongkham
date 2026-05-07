@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useInvoices, useAddPayment, useCreateInvoice, useIssueInvoice } from '@/hooks/use-invoices';
 import { usePatients } from '@/hooks/use-patients';
 import Modal from '@/components/ui/Modal';
-import { Plus, Search, CreditCard, FileText, CheckCircle, Loader, AlertCircle } from 'lucide-react';
+import { Plus, Search, CreditCard, FileText, CheckCircle, Loader, AlertCircle, Printer, Eye } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 
 function formatCurrency(amount: string | number): string {
@@ -45,6 +46,7 @@ export default function BillingPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [payModal, setPayModal] = useState<any>(null);
+  const [paySuccess, setPaySuccess] = useState<any>(null);
   const [createModal, setCreateModal] = useState(false);
   const [payForm, setPayForm] = useState({ amount: '', method: 'CASH', notes: '' });
   const [createForm, setCreateForm] = useState({
@@ -77,6 +79,7 @@ export default function BillingPage() {
         notes: payForm.notes,
       });
       toast.success('Thanh toán thành công');
+      setPaySuccess(payModal);
       setPayModal(null);
       setPayForm({ amount: '', method: 'CASH', notes: '' });
     } catch {
@@ -208,7 +211,7 @@ export default function BillingPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-1 flex-wrap">
                             {canPay && (
                               <button
                                 onClick={() => {
@@ -221,13 +224,17 @@ export default function BillingPage() {
                               </button>
                             )}
                             {inv.status === 'PAID' && (
-                              <span className="flex items-center gap-1 text-green-600 text-xs">
-                                <CheckCircle className="w-3.5 h-3.5" /> Đã trả
-                              </span>
+                              <Link href={`/billing/${inv.id}`}>
+                                <button className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium">
+                                  <Printer className="w-3 h-3" /> In hóa đơn
+                                </button>
+                              </Link>
                             )}
-                            <button className="p-1 hover:bg-gray-100 text-gray-500 rounded">
-                              <FileText className="w-4 h-4" />
-                            </button>
+                            <Link href={`/billing/${inv.id}`}>
+                              <button className="p-1 hover:bg-gray-100 text-gray-500 rounded" title="Xem chi tiết">
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            </Link>
                           </div>
                         </td>
                       </tr>
@@ -291,6 +298,33 @@ export default function BillingPage() {
                 className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Hủy</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Payment Success Modal */}
+      {paySuccess && (
+        <Modal title="Thanh toán thành công" open={true} onClose={() => { setPaySuccess(null); }}>
+          <div className="text-center py-4 space-y-4">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-9 h-9 text-green-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-lg">Đã nhận thanh toán</p>
+              <p className="text-gray-500 text-sm mt-1">{paySuccess.patient?.fullName} — {paySuccess.invoiceCode}</p>
+              <p className="text-green-700 font-bold text-xl mt-2">{formatCurrency(paySuccess.totalAmount)}</p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Link href={`/billing/${paySuccess.id}`} className="flex-1">
+                <button className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                  <Printer className="w-4 h-4" /> In hóa đơn
+                </button>
+              </Link>
+              <button onClick={() => setPaySuccess(null)}
+                className="flex-1 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium">
+                Đóng
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 
