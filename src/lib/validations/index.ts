@@ -59,8 +59,18 @@ export const createAppointmentSchema = z.object({
 export const updateAppointmentSchema = createAppointmentSchema.partial()
 
 export const appointmentStatusSchema = z.object({
-  status: z.enum(["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"]),
+  status: z.enum(["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"]).optional(),
   cancelReason: z.string().optional(),
+  vitalSigns: z.object({
+    systolic: z.number().optional(),
+    diastolic: z.number().optional(),
+    heartRate: z.number().optional(),
+    temperature: z.number().optional(),
+    weight: z.number().optional(),
+    height: z.number().optional(),
+    spo2: z.number().optional(),
+    notes: z.string().optional(),
+  }).optional(),
 })
 
 // Doctors

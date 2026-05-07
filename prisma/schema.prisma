@@ -380,6 +380,7 @@ model Appointment {
   chiefComplaint  String?
   notes           String?
   cancelReason    String?
+  vitalSigns      Json?
   reminderSent    Boolean           @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt

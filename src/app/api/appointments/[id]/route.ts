@@ -81,8 +81,9 @@ export const PATCH = apiHandler(
     const appointment = await prisma.appointment.update({
       where: { id: params.id },
       data: {
-        status: input.status,
+        ...(input.status && { status: input.status }),
         ...(input.cancelReason && { cancelReason: input.cancelReason }),
+        ...(input.vitalSigns !== undefined && { vitalSigns: input.vitalSigns }),
       },
       include: {
         patient: { select: { id: true, fullName: true } },
