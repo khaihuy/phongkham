@@ -10,7 +10,7 @@ import {
   error,
   requireRole,
 } from "@/lib/api-utils"
-import { createDrugSchema } from "@/lib/validations"
+import { createDrugSchema, CreateDrugInput } from "@/lib/validations"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -65,7 +65,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 export const POST = apiHandler(async (request: NextRequest) => {
   await requireRole(["ADMIN", "PHARMACIST"])
 
-  const input = await validateBody(request, createDrugSchema)
+  const input = await validateBody<CreateDrugInput>(request, createDrugSchema)
 
   // Check if category exists
   const category = await prisma.drugCategory.findUnique({

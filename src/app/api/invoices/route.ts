@@ -9,7 +9,7 @@ import {
   createMeta,
   error,
 } from "@/lib/api-utils"
-import { createInvoiceSchema } from "@/lib/validations"
+import { createInvoiceSchema, CreateInvoiceInput } from "@/lib/validations"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -58,7 +58,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 export const POST = apiHandler(async (request: NextRequest) => {
   const user = await getAuthUser()
 
-  const input = await validateBody(request, createInvoiceSchema)
+  const input = await validateBody<CreateInvoiceInput>(request, createInvoiceSchema)
 
   // Generate invoice code
   const lastInvoice = await prisma.invoice.findFirst({

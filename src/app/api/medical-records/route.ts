@@ -9,7 +9,7 @@ import {
   createMeta,
   error,
 } from "@/lib/api-utils"
-import { createMedicalRecordSchema } from "@/lib/validations"
+import { createMedicalRecordSchema, CreateMedicalRecordInput } from "@/lib/validations"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -52,7 +52,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
-  const input = await validateBody(request, createMedicalRecordSchema)
+  const input = await validateBody<CreateMedicalRecordInput>(request, createMedicalRecordSchema)
 
   // Generate record code
   const lastRecord = await prisma.medicalRecord.findFirst({

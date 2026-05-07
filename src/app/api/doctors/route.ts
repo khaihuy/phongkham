@@ -9,7 +9,7 @@ import {
   createMeta,
   error,
 } from "@/lib/api-utils"
-import { createDoctorSchema } from "@/lib/validations"
+import { createDoctorSchema, type CreateDoctorInput } from "@/lib/validations"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -59,7 +59,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
-  const input = await validateBody(request, createDoctorSchema)
+  const input = await validateBody<CreateDoctorInput>(request, createDoctorSchema)
 
   // Check if user exists
   const user = await prisma.user.findUnique({

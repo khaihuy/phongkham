@@ -10,7 +10,7 @@ import {
   createMeta,
   error,
 } from "@/lib/api-utils"
-import { createPatientSchema } from "@/lib/validations"
+import { createPatientSchema, CreatePatientInput } from "@/lib/validations"
 import { v4 as uuidv4 } from "crypto"
 
 export const GET = apiHandler(async (request: NextRequest) => {
@@ -59,7 +59,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
-  const input = await validateBody(request, createPatientSchema)
+  const input = await validateBody<CreatePatientInput>(request, createPatientSchema)
 
   // Generate patient code (e.g., PKC001)
   const lastPatient = await prisma.patient.findFirst({
