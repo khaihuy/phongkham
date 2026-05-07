@@ -96,7 +96,7 @@ export function sendError(
 /**
  * Validate request body
  */
-export async function validateBody<T>(
+export async function validateBody<T extends Record<string, any>>(
   request: NextRequest,
   schema: ZodSchema
 ): Promise<T> {
