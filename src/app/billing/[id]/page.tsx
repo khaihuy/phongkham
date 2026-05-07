@@ -8,6 +8,19 @@ import { useAddPayment, useIssueInvoice } from '@/hooks/use-invoices';
 import { ArrowLeft, CreditCard, Printer, Loader, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+const printStyles = `
+@media print {
+  body * { visibility: hidden; }
+  #print-area, #print-area * { visibility: visible; }
+  #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  .print-hide { display: none !important; }
+  .print-show { display: block !important; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; font-size: 12px; }
+  thead { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; }
+}
+`;
+
 function fmtCur(v: any) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(v) || 0); }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('vi-VN'); }
 
@@ -26,6 +39,11 @@ export default function InvoiceDetailPage() {
   const router = useRouter();
   const [payModal, setPayModal] = useState(false);
   const [payForm, setPayForm] = useState({ amount: '', method: 'CASH', notes: '' });
+
+  const { data: clinic } = useQuery({
+    queryKey: ['clinic'],
+    queryFn: async () => (await fetch('/api/clinic')).json().then((r: any) => r.data),
+  });
 
   const { data: invoice, isLoading, error, refetch } = useQuery({
     queryKey: ['invoice', id],
@@ -58,8 +76,27 @@ export default function InvoiceDetailPage() {
   const remaining = invoice.remainingAmount ?? (Number(invoice.totalAmount) - (invoice.paidAmount ?? 0));
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center gap-4">
+    <div className="space-y-6 max-w-3xl mx-auto" id="print-area">
+      <style dangerouslySetInnerHTML={{ __html: printStyles }} />
+
+      {/* Print-only clinic header */}
+      <div className="print-show hidden border-b-2 border-gray-800 pb-4 mb-4">
+        <div className="text-center">
+          <h2 className="text-xl font-bold uppercase">{clinic?.name ?? 'PHÒNG KHÁM'}</h2>
+          <p className="text-sm">{clinic?.address}{clinic?.phone ? ` | Tel: ${clinic.phone}` : ''}{clinic?.email ? ` | ${clinic.email}` : ''}</p>
+          {clinic?.licenseNo && <p className="text-sm">Giấy phép: {clinic.licenseNo}</p>}
+        </div>
+        <div className="mt-4 text-center">
+          <h3 className="text-lg font-bold uppercase tracking-widest">Hóa đơn dịch vụ y tế</h3>
+          <div className="flex justify-center gap-8 mt-2 text-sm">
+            <span>Số: <strong>{invoice?.invoiceCode}</strong></span>
+            <span>Ngày: <strong>{invoice?.issuedAt ? fmtDate(invoice.issuedAt) : fmtDate(invoice?.createdAt)}</strong></span>
+          </div>
+          <p className="text-sm mt-1">Bệnh nhân: <strong>{invoice?.patient?.fullName}</strong></p>
+        </div>
+      </div>
+
+      <div className="print-hide flex items-center gap-4">
         <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft className="w-5 h-5" /></button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">Hóa đơn {invoice.invoiceCode}</h1>
@@ -138,7 +175,7 @@ export default function InvoiceDetailPage() {
       )}
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="print-hide flex gap-3">
         {canPay && (
           <button onClick={() => { setPayModal(true); setPayForm({ amount: String(remaining), method: 'CASH', notes: '' }); }}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium">
@@ -153,6 +190,7 @@ export default function InvoiceDetailPage() {
 
       {/* Pay Modal */}
       {payModal && (
+        <div className="print-hide">
         <Modal title="Thanh toán hóa đơn" open={true} onClose={() => setPayModal(false)}>
           <form onSubmit={handlePay} className="space-y-3">
             <div>

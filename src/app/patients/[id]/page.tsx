@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Modal from '@/components/ui/Modal';
-import { ArrowLeft, Plus, User, Phone, Mail, MapPin, Heart, Activity, Calendar, FileText, AlertTriangle, Loader, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, User, Phone, Mail, MapPin, Heart, Activity, Calendar, FileText, AlertTriangle, Loader, AlertCircle, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 function fmt(d: string) { return new Date(d).toLocaleDateString('vi-VN'); }
@@ -35,8 +35,13 @@ export default function PatientDetailPage() {
   const [tab, setTab] = useState<'info' | 'appointments' | 'records' | 'vitals' | 'allergies'>('info');
   const [allergyModal, setAllergyModal] = useState(false);
   const [vitalModal, setVitalModal] = useState(false);
+  const [editPatientModal, setEditPatientModal] = useState(false);
   const [allergyForm, setAllergyForm] = useState({ allergen: '', reaction: '', severity: 'Nhẹ' });
   const [vitalForm, setVitalForm] = useState({ weight: '', height: '', bloodPressureSystolic: '', bloodPressureDiastolic: '', heartRate: '', temperature: '', oxygenSat: '' });
+  const [editPatientForm, setEditPatientForm] = useState({
+    fullName: '', phone: '', email: '', address: '', occupation: '',
+    emergencyContact: '', emergencyPhone: '', bloodType: 'UNKNOWN', allergiesNote: '',
+  });
 
   const { data: patient, isLoading, error } = useQuery({
     queryKey: ['patient', id],
@@ -93,6 +98,42 @@ export default function PatientDetailPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['patient', id] }); toast.success('Đã lưu chỉ số'); setVitalModal(false); },
     onError: () => toast.error('Lưu thất bại'),
   });
+
+  const updatePatient = useMutation({
+    mutationFn: async (data: typeof editPatientForm) => {
+      const r = await fetch('/api/patients/' + id, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error ?? 'Cập nhật thất bại');
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['patient', id] });
+      toast.success('Đã cập nhật thông tin bệnh nhân');
+      setEditPatientModal(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleOpenEditPatient = () => {
+    if (!patient) return;
+    setEditPatientForm({
+      fullName: patient.fullName ?? '',
+      phone: patient.phone ?? '',
+      email: patient.email ?? '',
+      address: patient.address ?? '',
+      occupation: patient.occupation ?? '',
+      emergencyContact: patient.emergencyContact ?? patient.emergencyName ?? '',
+      emergencyPhone: patient.emergencyPhone ?? '',
+      bloodType: patient.bloodType ?? 'UNKNOWN',
+      allergiesNote: patient.allergiesNote ?? '',
+    });
+    setEditPatientModal(true);
+  };
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader className="w-8 h-8 animate-spin text-sky-600" /></div>;
   if (error || !patient) return <div className="flex items-center justify-center h-64 text-red-600"><AlertCircle className="w-8 h-8 mr-2" /> Không tìm thấy bệnh nhân</div>;
@@ -156,6 +197,16 @@ export default function PatientDetailPage() {
 
         <div className="p-5">
           {tab === 'info' && (
+            <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-700 text-sm">Thông tin bệnh nhân</h3>
+              <button
+                onClick={handleOpenEditPatient}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> Chỉnh sửa
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <h3 className="font-semibold text-gray-700 text-sm">Thông tin cơ bản</h3>
@@ -175,6 +226,7 @@ export default function PatientDetailPage() {
                 )}
                 {patient.notes && <Row icon={<FileText className="w-4 h-4" />} label="Ghi chú" value={patient.notes} />}
               </div>
+            </div>
             </div>
           )}
 
@@ -353,6 +405,83 @@ export default function PatientDetailPage() {
                 {addVital.isPending ? 'Đang lưu...' : 'Lưu chỉ số'}
               </button>
               <button type="button" onClick={() => setVitalModal(false)} className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50">Hủy</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Edit Patient Modal */}
+      {editPatientModal && (
+        <Modal title="Chỉnh sửa thông tin bệnh nhân" open={true} onClose={() => setEditPatientModal(false)} size="lg">
+          <form onSubmit={e => { e.preventDefault(); updatePatient.mutate(editPatientForm); }} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên *</label>
+                <input type="text" value={editPatientForm.fullName}
+                  onChange={e => setEditPatientForm(f => ({ ...f, fullName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Điện thoại</label>
+                <input type="tel" value={editPatientForm.phone}
+                  onChange={e => setEditPatientForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" value={editPatientForm.email}
+                  onChange={e => setEditPatientForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nghề nghiệp</label>
+                <input type="text" value={editPatientForm.occupation}
+                  onChange={e => setEditPatientForm(f => ({ ...f, occupation: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
+                <input type="text" value={editPatientForm.address}
+                  onChange={e => setEditPatientForm(f => ({ ...f, address: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nhóm máu</label>
+                <select value={editPatientForm.bloodType}
+                  onChange={e => setEditPatientForm(f => ({ ...f, bloodType: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
+                  {Object.entries(BLOOD_LABELS).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Người liên hệ khẩn</label>
+                <input type="text" value={editPatientForm.emergencyContact}
+                  onChange={e => setEditPatientForm(f => ({ ...f, emergencyContact: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SĐT liên hệ khẩn</label>
+                <input type="tel" value={editPatientForm.emergencyPhone}
+                  onChange={e => setEditPatientForm(f => ({ ...f, emergencyPhone: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú dị ứng</label>
+                <input type="text" value={editPatientForm.allergiesNote}
+                  onChange={e => setEditPatientForm(f => ({ ...f, allergiesNote: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  placeholder="VD: Dị ứng Penicillin, Aspirin..." />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button type="submit" disabled={updatePatient.isPending}
+                className="flex-1 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium disabled:bg-gray-400">
+                {updatePatient.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </button>
+              <button type="button" onClick={() => setEditPatientModal(false)}
+                className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50">Hủy</button>
             </div>
           </form>
         </Modal>

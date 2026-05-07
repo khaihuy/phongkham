@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useDrugs, useCreateDrug } from '@/hooks/use-drugs';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal from '@/components/ui/Modal';
-import { Plus, Search, AlertCircle, Loader, Package } from 'lucide-react';
+import { Plus, Search, AlertCircle, Loader, Package, ArrowDownToLine } from 'lucide-react';
 import { toast } from 'sonner';
 
 function useDrugCategories() {
@@ -29,15 +29,45 @@ const emptyForm = {
   manufacturer: '', requirePrescription: false, minStock: 50, categoryId: '',
 };
 
+const emptyStockForm = {
+  drugId: '',
+  quantity: 1,
+  unitCost: 0,
+  supplierName: '',
+  batchNumber: '',
+  expiryDate: '',
+  notes: '',
+};
+
+function useImportStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ drugId, data }: { drugId: string; data: Omit<typeof emptyStockForm, 'drugId'> }) => {
+      const r = await fetch(`/api/drugs/${drugId}/stock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, type: 'IMPORT', quantity: Number(data.quantity), unitCost: Number(data.unitCost) }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? 'Lỗi nhập kho');
+      return j.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drugs'] }),
+  });
+}
+
 export default function PharmacyPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
+  const [importModal, setImportModal] = useState(false);
   const [form, setForm] = useState(typeof emptyForm === 'object' ? { ...emptyForm } : emptyForm);
+  const [stockForm, setStockForm] = useState({ ...emptyStockForm });
 
   const { data: drugsData, isLoading, error } = useDrugs(page, 10, search || undefined);
   const { data: categories = [] } = useDrugCategories();
   const createDrug = useCreateDrug();
+  const importStock = useImportStock();
 
   const drugs: any[] = drugsData?.data ?? [];
   const meta = drugsData?.meta;
@@ -54,6 +84,23 @@ export default function PharmacyPage() {
     }
   }
 
+  async function handleImportStock(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stockForm.drugId) {
+      toast.error('Vui lòng chọn thuốc');
+      return;
+    }
+    try {
+      const { drugId, ...rest } = stockForm;
+      await importStock.mutateAsync({ drugId, data: rest });
+      toast.success('Nhập kho thành công');
+      setImportModal(false);
+      setStockForm({ ...emptyStockForm });
+    } catch (err: any) {
+      toast.error(err.message ?? 'Nhập kho thất bại');
+    }
+  }
+
   if (error) return (
     <div className="flex items-center justify-center h-64 text-red-600">
       <AlertCircle className="w-8 h-8 mr-2" /> Lỗi khi tải dữ liệu
@@ -64,12 +111,20 @@ export default function PharmacyPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Kho dược</h1>
-        <button
-          onClick={() => setCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
-        >
-          <Plus className="w-5 h-5" /> Thêm thuốc
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setStockForm({ ...emptyStockForm }); setImportModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <ArrowDownToLine className="w-5 h-5" /> Nhập kho
+          </button>
+          <button
+            onClick={() => setCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <Plus className="w-5 h-5" /> Thêm thuốc
+          </button>
+        </div>
       </div>
 
       <div className="relative">
@@ -143,6 +198,86 @@ export default function PharmacyPage() {
           <div className="flex items-center justify-center h-48 text-gray-400">Không có thuốc</div>
         )}
       </div>
+
+      {/* Import Stock Modal */}
+      {importModal && (
+        <Modal title="Nhập kho thuốc" open={true} onClose={() => setImportModal(false)}>
+          <form onSubmit={handleImportStock} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Chọn thuốc *</label>
+              <select
+                value={stockForm.drugId}
+                onChange={e => setStockForm(f => ({ ...f, drugId: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                required
+              >
+                <option value="">— Chọn thuốc —</option>
+                {drugs.map((d: any) => (
+                  <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Số lượng nhập *</label>
+                <input
+                  type="number" min={1} value={stockForm.quantity} required
+                  onChange={e => setStockForm(f => ({ ...f, quantity: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Giá nhập (VNĐ)</label>
+                <input
+                  type="number" min={0} step={1000} value={stockForm.unitCost}
+                  onChange={e => setStockForm(f => ({ ...f, unitCost: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nhà cung cấp</label>
+                <input
+                  type="text" value={stockForm.supplierName} placeholder="Tên nhà cung cấp"
+                  onChange={e => setStockForm(f => ({ ...f, supplierName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Số lô</label>
+                <input
+                  type="text" value={stockForm.batchNumber} placeholder="Số lô sản xuất"
+                  onChange={e => setStockForm(f => ({ ...f, batchNumber: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Ngày hết hạn</label>
+                <input
+                  type="date" value={stockForm.expiryDate}
+                  onChange={e => setStockForm(f => ({ ...f, expiryDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Ghi chú</label>
+                <input
+                  type="text" value={stockForm.notes} placeholder="Ghi chú thêm"
+                  onChange={e => setStockForm(f => ({ ...f, notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" disabled={importStock.isPending}
+                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg font-medium text-sm">
+                {importStock.isPending ? 'Đang nhập...' : 'Nhập kho'}
+              </button>
+              <button type="button" onClick={() => setImportModal(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">Hủy</button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* Create Modal */}
       {createModal && (
