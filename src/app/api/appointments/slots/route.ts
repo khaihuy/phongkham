@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/db/prisma"
 import { apiHandler, getAuthUser, sendSuccess, error } from "@/lib/api-utils"
-import { format, parse } from "date-fns"
+import { format, parse, startOfDay, endOfDay } from "date-fns"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -40,12 +40,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const [endHour, endMin] = schedule.endTime.split(":").map(Number)
 
   // Get existing appointments for this date
+  const dateStart = startOfDay(dateObj)
+  const dateEnd = endOfDay(dateObj)
+
   const existingAppointments = await prisma.appointment.findMany({
     where: {
       doctorId,
       scheduledDate: {
-        gte: new Date(appointmentDate).setHours(0, 0, 0, 0),
-        lt: new Date(appointmentDate).setHours(23, 59, 59, 999),
+        gte: dateStart,
+        lte: dateEnd,
       },
       status: {
         not: "CANCELLED",
