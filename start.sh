@@ -10,7 +10,7 @@ if ! ./node_modules/.bin/prisma migrate deploy; then
 fi
 
 echo "🌱 Seeding database..."
-./node_modules/.bin/prisma db seed
+./node_modules/.bin/tsx prisma/seed.ts
 
 echo "✅ Database ready"
 echo "🚀 Starting Phòng Khám CRM..."
