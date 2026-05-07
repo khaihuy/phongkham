@@ -11,7 +11,6 @@ import {
   error,
 } from "@/lib/api-utils"
 import { createPatientSchema, CreatePatientInput } from "@/lib/validations"
-import { v4 as uuidv4 } from "crypto"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()

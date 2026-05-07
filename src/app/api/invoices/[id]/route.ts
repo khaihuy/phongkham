@@ -70,7 +70,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
       ...(input.items && {
         items: {
           deleteMany: {},
-          create: input.items.map((item) => ({
+          create: input.items.map((item: any) => ({
             type: item.type,
             serviceId: item.serviceId,
             drugId: item.drugId,
@@ -177,12 +177,8 @@ export const PATCH = apiHandler(async (request: NextRequest, { params }: { param
           where: { id: params.id },
           data: { status: "PAID" },
         })
-      } else if (parseFloat(totalPaid.toString()) > 0) {
-        await prisma.invoice.update({
-          where: { id: params.id },
-          data: { status: "PARTIAL" },
-        })
       }
+      // Partial payments: keep invoice status as ISSUED (no PARTIAL in InvoiceStatus enum)
     }
 
     return sendSuccess({ payment }, 201)

@@ -20,7 +20,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         lte: new Date(dateTo),
       },
       status: {
-        in: ["PAID", "PARTIAL", "ISSUED"],
+        in: ["PAID", "ISSUED"],
       },
     },
     include: {
@@ -30,38 +30,39 @@ export const GET = apiHandler(async (request: NextRequest) => {
   })
 
   // Group by date
-  const revenueByDate: Record<string, any> = {}
+  const revenueByDate: Record<string, { date: string; total: number; paid: number; pending: number; count: number }> = {}
 
   invoices.forEach((invoice) => {
     const date = invoice.createdAt.toISOString().split("T")[0]
     if (!revenueByDate[date]) {
       revenueByDate[date] = {
         date,
-        total: 0n,
-        paid: 0n,
-        partial: 0n,
+        total: 0,
+        paid: 0,
+        pending: 0,
         count: 0,
       }
     }
-    revenueByDate[date].total += invoice.totalAmount
+    const amount = Number(invoice.totalAmount)
+    revenueByDate[date].total += amount
     if (invoice.status === "PAID") {
-      revenueByDate[date].paid += invoice.totalAmount
-    } else if (invoice.status === "PARTIAL") {
-      revenueByDate[date].partial += invoice.totalAmount
+      revenueByDate[date].paid += amount
+    } else {
+      revenueByDate[date].pending += amount
     }
     revenueByDate[date].count += 1
   })
 
-  const data = Object.values(revenueByDate).map((item: any) => ({
+  const data = Object.values(revenueByDate).map((item) => ({
     date: item.date,
     total: item.total.toString(),
     paid: item.paid.toString(),
-    partial: item.partial.toString(),
+    pending: item.pending.toString(),
     count: item.count,
   }))
 
-  const totalRevenue = data.reduce((sum, item) => sum + BigInt(item.total), 0n)
-  const totalPaid = data.reduce((sum, item) => sum + BigInt(item.paid), 0n)
+  const totalRevenue = data.reduce((sum, item) => sum + Number(item.total), 0)
+  const totalPaid = data.reduce((sum, item) => sum + Number(item.paid), 0)
 
   return sendSuccess({
     data: data.sort((a, b) => a.date.localeCompare(b.date)),

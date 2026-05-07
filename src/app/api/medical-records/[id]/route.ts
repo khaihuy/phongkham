@@ -88,7 +88,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
         medicalRecordId: params.id,
         prescriptionCode: nextCode,
         items: {
-          create: input.items.map((item) => ({
+          create: input.items.map((item: any) => ({
             drugId: item.drugId,
             quantity: item.quantity,
             dosage: item.dosage,

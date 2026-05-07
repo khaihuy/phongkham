@@ -76,7 +76,7 @@ export const authConfig = {
             email: user.email,
             name: user.fullName,
             role: user.role,
-            image: user.avatarUrl,
+            image: user.avatarUrl ?? undefined,
           }
         } catch (error) {
           console.error("Auth error:", error)

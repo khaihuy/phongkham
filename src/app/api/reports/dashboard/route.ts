@@ -49,29 +49,27 @@ export const GET = apiHandler(async (request: NextRequest) => {
     },
   })
 
-  // Get revenue this month
+  // Get revenue this month (PAID invoices)
   const monthRevenue = await prisma.invoice.aggregate({
     where: {
       createdAt: {
         gte: monthStart,
         lte: monthEnd,
       },
-      status: {
-        in: ["PAID", "PARTIAL"],
-      },
+      status: "PAID",
     },
     _sum: {
       totalAmount: true,
     },
   })
 
-  const totalRevenue = monthRevenue._sum.totalAmount || 0
+  const totalRevenue = monthRevenue._sum?.totalAmount ?? 0
 
-  // Get unpaid invoices
+  // Get unpaid invoices (issued but not yet paid)
   const unpaidInvoices = await prisma.invoice.findMany({
     where: {
       status: {
-        in: ["UNPAID", "OVERDUE"],
+        in: ["ISSUED", "OVERDUE"],
       },
     },
     select: {
@@ -123,7 +121,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       todayAppointmentsInProgress: inProgressToday,
       totalPatients,
       newPatientsThisMonth,
-      monthRevenue: totalRevenue.toString(),
+      monthRevenue: String(totalRevenue),
       unpaidInvoicesCount: unpaidInvoices.length,
       totalUnpaid: totalUnpaid.toString(),
       activeDoctors,
