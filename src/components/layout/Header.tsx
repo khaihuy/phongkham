@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, Search, FlaskConical, ScanLine, X } from 'lucide-react';
+import { Menu, Bell, Search, FlaskConical, ScanLine, X, Users, CreditCard, Calendar } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -19,6 +20,37 @@ export default function Header({ onMenuClick, title }: HeaderProps) {
   const [showNotif, setShowNotif] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+  const router = useRouter();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(searchQ), 300);
+    return () => clearTimeout(t);
+  }, [searchQ]);
+
+  const { data: searchResults } = useQuery({
+    queryKey: ['search', debouncedQ],
+    queryFn: async () => {
+      if (debouncedQ.length < 2) return null;
+      const r = await fetch(`/api/search?q=${encodeURIComponent(debouncedQ)}`);
+      return (await r.json()).data;
+    },
+    enabled: debouncedQ.length >= 2,
+  });
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+      if (e.key === 'Escape') setSearchOpen(false);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('vi-VN', {
@@ -173,11 +205,110 @@ export default function Header({ onMenuClick, title }: HeaderProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5 hidden md:flex">
-          <Search className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-400">Tìm kiếm...</span>
+        <div className="relative hidden md:block">
+          <button
+            onClick={() => { setSearchOpen(true); setTimeout(() => document.getElementById('global-search')?.focus(), 50); }}
+            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-1.5 transition-colors min-w-[200px]"
+          >
+            <Search className="w-4 h-4 text-gray-400" />
+            <span className="text-sm text-gray-400">Tìm kiếm... (Ctrl+K)</span>
+          </button>
         </div>
       </div>
+
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center pt-16 px-4" onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false); }}>
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Search input */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+              <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <input
+                id="global-search"
+                type="text"
+                value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                placeholder="Tìm bệnh nhân, hóa đơn, lịch hẹn..."
+                className="flex-1 text-base outline-none text-gray-800 placeholder-gray-400"
+                autoFocus
+              />
+              {searchQ && (
+                <button onClick={() => setSearchQ('')} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              <kbd className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded border border-gray-200">Esc</kbd>
+            </div>
+
+            {/* Results */}
+            <div className="max-h-96 overflow-y-auto">
+              {debouncedQ.length < 2 ? (
+                <div className="px-4 py-8 text-center text-gray-400 text-sm">Nhập ít nhất 2 ký tự để tìm kiếm</div>
+              ) : !searchResults ? (
+                <div className="px-4 py-8 text-center"><div className="inline-block w-5 h-5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" /></div>
+              ) : (searchResults.patients.length === 0 && searchResults.invoices.length === 0 && searchResults.appointments.length === 0) ? (
+                <div className="px-4 py-8 text-center text-gray-400 text-sm">Không tìm thấy kết quả cho &quot;{debouncedQ}&quot;</div>
+              ) : (
+                <div className="py-2">
+                  {/* Patients */}
+                  {searchResults.patients.length > 0 && (
+                    <div>
+                      <p className="px-4 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">Bệnh nhân</p>
+                      {searchResults.patients.map((p: any) => (
+                        <button key={p.id} onClick={() => { router.push(`/patients/${p.id}`); setSearchOpen(false); setSearchQ(''); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-sky-50 transition-colors text-left">
+                          <div className="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Users className="w-4 h-4 text-sky-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{p.fullName}</p>
+                            <p className="text-xs text-gray-500">{p.patientCode}{p.phone ? ` · ${p.phone}` : ''}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Invoices */}
+                  {searchResults.invoices.length > 0 && (
+                    <div>
+                      <p className="px-4 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">Hóa đơn</p>
+                      {searchResults.invoices.map((inv: any) => (
+                        <button key={inv.id} onClick={() => { router.push(`/billing/${inv.id}`); setSearchOpen(false); setSearchQ(''); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-sky-50 transition-colors text-left">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <CreditCard className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-800">{inv.invoiceCode} · {inv.patient?.fullName}</p>
+                            <p className="text-xs text-gray-500">{new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND'}).format(Number(inv.totalAmount))} · {inv.status}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Appointments */}
+                  {searchResults.appointments.length > 0 && (
+                    <div>
+                      <p className="px-4 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">Lịch hẹn</p>
+                      {searchResults.appointments.map((apt: any) => (
+                        <button key={apt.id} onClick={() => { router.push(`/appointments`); setSearchOpen(false); setSearchQ(''); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-sky-50 transition-colors text-left">
+                          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Calendar className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{apt.appointmentCode} · {apt.patient?.fullName}</p>
+                            <p className="text-xs text-gray-500">{new Date(apt.scheduledDate).toLocaleDateString('vi-VN')} {apt.scheduledTime} · BS: {apt.doctor?.user?.fullName ?? '—'}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
