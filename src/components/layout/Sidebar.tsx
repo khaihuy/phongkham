@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import {
   LayoutDashboard,
   Users,
@@ -50,6 +52,15 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const { data: clinic } = useQuery({
+    queryKey: ['clinic'],
+    queryFn: async () => {
+      const r = await fetch('/api/clinic');
+      return (await r.json()).data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   return (
     <>
@@ -73,8 +84,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               <Stethoscope className="w-5 h-5 text-primary-700" />
             </div>
             <div>
-              <p className="text-white font-bold text-sm leading-tight">Phòng Khám</p>
-              <p className="text-primary-200 text-xs">Đa Khoa An Khang</p>
+              <p className="text-white font-bold text-sm leading-tight truncate max-w-[140px]">
+                {clinic?.name ?? 'Phòng Khám'}
+              </p>
+              <p className="text-primary-200 text-xs truncate max-w-[140px]">
+                {clinic?.address?.split(',').slice(-2).join(',').trim() ?? 'CRM'}
+              </p>
             </div>
           </div>
           <button
@@ -116,11 +131,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         <div className="px-4 py-4 border-t border-white/10">
           <div className="flex items-center gap-3 px-2">
             <div className="w-8 h-8 bg-primary-400 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              A
+              {session?.user?.name?.[0]?.toUpperCase() ?? 'U'}
             </div>
             <div className="min-w-0">
-              <p className="text-white text-xs font-semibold truncate">Quản trị viên</p>
-              <p className="text-primary-200 text-xs truncate">admin@phongkham.vn</p>
+              <p className="text-white text-xs font-semibold truncate">{session?.user?.name ?? '...'}</p>
+              <p className="text-primary-200 text-xs truncate">{session?.user?.email ?? ''}</p>
             </div>
           </div>
         </div>

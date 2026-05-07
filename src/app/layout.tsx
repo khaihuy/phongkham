@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 import LayoutClient from './layout-client';
 
 export const metadata = {
-  title: 'Phòng Khám Đa Khoa An Khang - CRM',
+  title: 'Phòng Khám CRM',
   description: 'Hệ thống quản lý phòng khám tư',
 };
 
