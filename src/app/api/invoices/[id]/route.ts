@@ -148,7 +148,12 @@ export const PATCH = apiHandler(async (request: NextRequest, { params }: { param
   }
 
   if (action === "add-payment") {
-    const input = await validateBody(request, paymentSchema)
+    const parsed = paymentSchema.safeParse(body)
+    if (!parsed.success) {
+      const details = parsed.error.errors.map((e) => ({ field: e.path.join("."), message: e.message }))
+      throw error("VALIDATION_ERROR", 400, "Dữ liệu thanh toán không hợp lệ")
+    }
+    const input = parsed.data
 
     const payment = await prisma.payment.create({
       data: {
