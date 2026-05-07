@@ -9,7 +9,7 @@ import {
   createMeta,
   error,
 } from "@/lib/api-utils"
-import { createAppointmentSchema } from "@/lib/validations"
+import { createAppointmentSchema, type CreateAppointmentInput } from "@/lib/validations"
 import { addDays } from "date-fns"
 
 const VALID_APPOINTMENT_STATUSES = ["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"] as const
@@ -77,7 +77,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
-  const input = await validateBody(request, createAppointmentSchema)
+  const input = await validateBody<CreateAppointmentInput>(request, createAppointmentSchema)
 
   // Generate appointment code
   const lastAppointment = await prisma.appointment.findFirst({
