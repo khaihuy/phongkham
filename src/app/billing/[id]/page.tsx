@@ -44,7 +44,7 @@ export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [payModal, setPayModal] = useState(false);
-  const [payForm, setPayForm] = useState({ amount: '', method: 'CASH', notes: '' });
+  const [payForm, setPayForm] = useState({ amount: '', method: 'CASH', notes: '', insuranceCover: '0', bhytCode: '' });
 
   const { data: clinic } = useQuery({
     queryKey: ['clinic'],
@@ -67,7 +67,17 @@ export default function InvoiceDetailPage() {
     e.preventDefault();
     try {
       if (invoice.status === 'DRAFT') await issueInvoice.mutateAsync();
-      await addPayment.mutateAsync({ amount: payForm.amount || String(invoice.remainingAmount ?? Number(invoice.totalAmount)), method: payForm.method as any, notes: payForm.notes });
+      const notesWithBhyt = payForm.bhytCode
+        ? `BHYT: ${payForm.bhytCode} (chi trả: ${payForm.insuranceCover}đ). ${payForm.notes}`.trim()
+        : payForm.notes;
+      await addPayment.mutateAsync({ amount: payForm.amount || String(invoice.remainingAmount ?? Number(invoice.totalAmount)), method: payForm.method as any, notes: notesWithBhyt });
+      if (Number(payForm.insuranceCover) > 0) {
+        await fetch(`/api/invoices/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update-insurance', insuranceCover: Number(payForm.insuranceCover) }),
+        });
+      }
       toast.success('Thanh toán thành công');
       setPayModal(false);
       refetch();
@@ -212,7 +222,7 @@ export default function InvoiceDetailPage() {
       {/* Actions */}
       <div className="print-hide flex gap-3">
         {canPay && (
-          <button onClick={() => { setPayModal(true); setPayForm({ amount: String(remaining), method: 'CASH', notes: '' }); }}
+          <button onClick={() => { setPayModal(true); setPayForm({ amount: String(remaining), method: 'CASH', notes: '', insuranceCover: '0', bhytCode: '' }); }}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium">
             <CreditCard className="w-4 h-4" /> Thanh toán
           </button>
@@ -228,6 +238,37 @@ export default function InvoiceDetailPage() {
         <div className="print-hide">
         <Modal title="Thanh toán hóa đơn" open={true} onClose={() => setPayModal(false)}>
           <form onSubmit={handlePay} className="space-y-3">
+            {/* BHYT section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox"
+                  checked={payForm.insuranceCover !== '0' && payForm.insuranceCover !== ''}
+                  onChange={e => setPayForm(f => ({ ...f, insuranceCover: e.target.checked ? '' : '0', method: e.target.checked ? 'INSURANCE' : f.method }))}
+                  className="rounded" />
+                <span className="text-sm font-medium text-blue-800">Có Bảo hiểm y tế (BHYT)</span>
+              </label>
+              {payForm.insuranceCover !== '0' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Mã BHYT</label>
+                    <input type="text" value={payForm.bhytCode}
+                      onChange={e => setPayForm(f => ({ ...f, bhytCode: e.target.value }))}
+                      placeholder="VD: HS4 1234567890"
+                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">BH chi trả (VNĐ)</label>
+                    <input type="number" value={payForm.insuranceCover}
+                      onChange={e => {
+                        const bhCover = Number(e.target.value);
+                        const total = Number(invoice?.totalAmount ?? 0);
+                        setPayForm(f => ({ ...f, insuranceCover: e.target.value, amount: String(Math.max(0, total - bhCover)) }));
+                      }}
+                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
+              )}
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền</label>
               <input type="number" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))}

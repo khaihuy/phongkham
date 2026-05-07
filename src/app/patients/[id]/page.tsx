@@ -32,7 +32,8 @@ export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'info' | 'appointments' | 'records' | 'vitals' | 'allergies'>('info');
+  const [tab, setTab] = useState<'info' | 'appointments' | 'records' | 'billing' | 'vitals' | 'allergies'>('info');
+  const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [allergyModal, setAllergyModal] = useState(false);
   const [vitalModal, setVitalModal] = useState(false);
   const [editPatientModal, setEditPatientModal] = useState(false);
@@ -71,6 +72,15 @@ export default function PatientDetailPage() {
       return j.data ?? [];
     },
     enabled: tab === 'records',
+  });
+
+  const { data: billingData } = useQuery({
+    queryKey: ['patient-billing', id],
+    queryFn: async () => {
+      const r = await fetch(`/api/invoices?patientId=${id}&pageSize=20`);
+      return (await r.json()).data ?? [];
+    },
+    enabled: tab === 'billing',
   });
 
   const addAllergy = useMutation({
@@ -142,6 +152,7 @@ export default function PatientDetailPage() {
     { key: 'info', label: 'Thông tin' },
     { key: 'appointments', label: 'Lịch hẹn' },
     { key: 'records', label: 'Hồ sơ khám' },
+    { key: 'billing', label: '💳 Hóa đơn' },
     { key: 'vitals', label: 'Chỉ số' },
     { key: 'allergies', label: 'Dị ứng' },
   ] as const;
@@ -252,15 +263,86 @@ export default function PatientDetailPage() {
             <div className="space-y-3">
               {records.length === 0 ? (
                 <p className="text-gray-400 text-center py-8">Chưa có hồ sơ bệnh án</p>
-              ) : records.map((r: any) => (
-                <div key={r.id} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex justify-between">
-                    <p className="font-medium text-sm">{r.recordCode}</p>
-                    <p className="text-xs text-gray-500">{fmt(r.visitDate)}</p>
+              ) : records.map((rec: any) => (
+                <div key={rec.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
+                    onClick={() => setExpandedRecord(expandedRecord === rec.id ? null : rec.id)}>
+                    <div>
+                      <p className="font-semibold text-gray-800">{rec.recordCode}</p>
+                      <p className="text-sm text-gray-500">{new Date(rec.visitDate).toLocaleDateString('vi-VN')} · BS: {rec.doctor?.user?.fullName ?? '—'}</p>
+                      {rec.diagnosis && <p className="text-sm text-sky-700 mt-0.5">CĐ: {rec.diagnosis}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/medical-records/${rec.id}`} onClick={e => e.stopPropagation()}
+                        className="px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-lg text-xs font-medium">
+                        Xem chi tiết
+                      </Link>
+                      <span className="text-gray-400">{expandedRecord === rec.id ? '▲' : '▼'}</span>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{r.diagnosis ?? 'Chưa có chẩn đoán'}</p>
-                  {r.treatment && <p className="text-xs text-gray-500 mt-1">Điều trị: {r.treatment}</p>}
+                  {expandedRecord === rec.id && (
+                    <div className="border-t border-gray-100 px-4 py-3 space-y-3 bg-gray-50 text-sm">
+                      {rec.prescriptions?.length > 0 && (
+                        <div>
+                          <p className="font-medium text-gray-600 mb-1">💊 Đơn thuốc:</p>
+                          {rec.prescriptions.map((p: any) => (
+                            <div key={p.id} className="pl-3 border-l-2 border-amber-300">
+                              {p.items?.map((item: any, i: number) => (
+                                <p key={i} className="text-gray-700">{item.drug?.name} {item.drug?.strength} — {item.dosage} × {item.frequency} × {item.duration} (SL: {item.quantity})</p>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {rec.labOrders?.length > 0 && (
+                        <div>
+                          <p className="font-medium text-gray-600 mb-1">🔬 Xét nghiệm:</p>
+                          {rec.labOrders.map((lab: any) => (
+                            <p key={lab.id} className="pl-3 border-l-2 border-purple-300 text-gray-700">
+                              {lab.testName} {lab.result && <span className="text-green-700">→ {lab.result}</span>}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {rec.imageOrders?.length > 0 && (
+                        <div>
+                          <p className="font-medium text-gray-600 mb-1">🩻 CĐHA:</p>
+                          {rec.imageOrders.map((img: any) => (
+                            <p key={img.id} className="pl-3 border-l-2 border-teal-300 text-gray-700">
+                              {img.imagingType} {img.findings && <span className="text-green-700">→ {img.findings}</span>}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'billing' && (
+            <div className="space-y-3">
+              {!billingData ? (
+                <div className="text-center py-8 text-gray-400">Đang tải...</div>
+              ) : billingData.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">Chưa có hóa đơn</div>
+              ) : billingData.map((inv: any) => (
+                <Link key={inv.id} href={`/billing/${inv.id}`}
+                  className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-sky-200 hover:shadow-md transition-all">
+                  <div>
+                    <p className="font-semibold text-gray-800 font-mono">{inv.invoiceCode}</p>
+                    <p className="text-sm text-gray-500">{new Date(inv.createdAt).toLocaleDateString('vi-VN')}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(inv.totalAmount))}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                      inv.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                      inv.status === 'DRAFT' ? 'bg-gray-100 text-gray-600' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>{inv.status === 'PAID' ? 'Đã thanh toán' : inv.status === 'DRAFT' ? 'Nháp' : 'Chưa thanh toán'}</span>
+                  </div>
+                </Link>
               ))}
             </div>
           )}

@@ -187,5 +187,17 @@ export const PATCH = apiHandler(async (request: NextRequest, { params }: { param
     return sendSuccess(payment, 201)
   }
 
+  if (action === "update-insurance") {
+    const { insuranceCover } = body
+    if (insuranceCover === undefined || isNaN(Number(insuranceCover))) {
+      throw error("BAD_REQUEST", 400, "insuranceCover không hợp lệ")
+    }
+    const updated = await prisma.invoice.update({
+      where: { id: params.id },
+      data: { insuranceCover: parseFloat(String(insuranceCover)) },
+    })
+    return sendSuccess(updated)
+  }
+
   throw error("BAD_REQUEST", 400, "Invalid action")
 })
