@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity, Plus, Bell } from 'lucide-react';
+import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity, Plus, Bell, Printer, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from '@/components/ui/Modal';
 
@@ -149,6 +149,7 @@ export default function MedicalRecordDetailPage() {
   const [completing, setCompleting] = useState(false);
   const [invoicePreview, setInvoicePreview] = useState<any>(null);
   const [markingRead, setMarkingRead] = useState(false);
+  const [creatingFollowUp, setCreatingFollowUp] = useState(false);
 
   const { data: record, isLoading, error } = useQuery({
     queryKey: ['medical-record', id],
@@ -319,6 +320,35 @@ export default function MedicalRecordDetailPage() {
     }
   }
 
+  async function handleCreateFollowUp() {
+    if (!record.followUpDate) return;
+    setCreatingFollowUp(true);
+    try {
+      const r = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          patientId: record.patientId,
+          doctorId: record.doctorId,
+          branchId: record.appointment?.branchId ?? '',
+          type: 'FOLLOW_UP',
+          scheduledDate: record.followUpDate,
+          scheduledTime: record.appointment?.scheduledTime ?? '08:00',
+          duration: 30,
+          chiefComplaint: `Tái khám: ${record.diagnosis ?? ''}`.trim(),
+          notes: record.followUpNotes ?? '',
+        })
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? 'Lỗi tạo lịch hẹn');
+      toast.success(`Đã tạo lịch tái khám: ${new Date(record.followUpDate).toLocaleDateString('vi-VN')}`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setCreatingFollowUp(false);
+    }
+  }
+
   if (isLoading)
     return (
       <div className="flex items-center justify-center h-64">
@@ -356,6 +386,15 @@ export default function MedicalRecordDetailPage() {
             >
               <CreditCard className="w-4 h-4" /> Xem hóa đơn
             </Link>
+          )}
+
+          {/* Follow-up appointment button */}
+          {record.followUpDate && record.appointment?.status === 'COMPLETED' && (
+            <button onClick={handleCreateFollowUp} disabled={creatingFollowUp}
+              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium">
+              <CalendarDays className="w-4 h-4" />
+              {creatingFollowUp ? 'Đang tạo...' : `Tái khám ${new Date(record.followUpDate).toLocaleDateString('vi-VN')}`}
+            </button>
           )}
 
           {/* Complete exam button */}
@@ -665,9 +704,15 @@ export default function MedicalRecordDetailPage() {
             <div key={presc.id} className="border border-gray-100 rounded-lg overflow-hidden">
               <div className="flex items-center justify-between px-4 py-2 bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">Đơn {pi + 1}</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-medium ${PRESC_STATUS_COLORS[presc.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {PRESC_STATUS[presc.status] ?? presc.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${PRESC_STATUS_COLORS[presc.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {PRESC_STATUS[presc.status] ?? presc.status}
+                  </span>
+                  <Link href={`/prescriptions/${presc.id}/print`} target="_blank"
+                    className="flex items-center gap-1 px-2.5 py-1 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded text-xs font-medium transition-colors">
+                    <Printer className="w-3 h-3" /> In đơn
+                  </Link>
+                </div>
               </div>
               {presc.items && presc.items.length > 0 ? (
                 <div className="overflow-x-auto">
