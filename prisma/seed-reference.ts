@@ -216,12 +216,11 @@ export async function seedReferenceData() {
     try {
       await prisma.service.upsert({
         where: { code: s.code },
-        update: { name: s.name, price: s.price, duration: s.duration, description: s.desc },
+        update: { name: s.name, price: s.price, description: s.desc },
         create: {
           code: s.code,
           name: s.name,
           price: s.price,
-          duration: s.duration,
           description: s.desc,
           clinicId: clinic.id,
           unit: "lần",
