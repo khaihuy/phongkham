@@ -438,7 +438,7 @@ interface DoctorCardProps {
 
 function DoctorCard({ doctor, onView, onEdit, onDelete }: DoctorCardProps) {
   const DAYS_FULL = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-  const workDays = [...new Set(doctor.schedule.map((s) => s.dayOfWeek))].sort();
+  const workDays = Array.from(new Set(doctor.schedule.map((s) => s.dayOfWeek))).sort();
 
   return (
     <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5 hover:border-primary-200 transition-colors">
