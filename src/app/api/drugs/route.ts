@@ -59,7 +59,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   ])
 
   const meta = createMeta(page, pageSize, total)
-  return sendSuccess({ drugs }, 200, meta)
+  return sendSuccess(drugs, 200, meta)
 })
 
 export const POST = apiHandler(async (request: NextRequest) => {
@@ -95,5 +95,5 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   })
 
-  return sendSuccess({ drug }, 201)
+  return sendSuccess(drug, 201)
 })

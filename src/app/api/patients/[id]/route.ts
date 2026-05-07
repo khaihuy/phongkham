@@ -36,7 +36,7 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     throw error("NOT_FOUND", 404, "Bệnh nhân không tìm thấy")
   }
 
-  return sendSuccess({ patient })
+  return sendSuccess(patient)
 })
 
 export const PUT = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -56,7 +56,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
     },
   })
 
-  return sendSuccess({ patient })
+  return sendSuccess(patient)
 })
 
 export const DELETE = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -71,5 +71,5 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: { para
     },
   })
 
-  return sendSuccess({ patient })
+  return sendSuccess(patient)
 })

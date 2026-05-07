@@ -53,7 +53,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   ])
 
   const meta = createMeta(page, pageSize, total)
-  return sendSuccess({ doctors }, 200, meta)
+  return sendSuccess(doctors, 200, meta)
 })
 
 export const POST = apiHandler(async (request: NextRequest) => {

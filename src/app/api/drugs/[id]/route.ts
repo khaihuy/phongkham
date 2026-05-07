@@ -60,7 +60,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
     },
   })
 
-  return sendSuccess({ drug })
+  return sendSuccess(drug)
 })
 
 export const DELETE = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -74,7 +74,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: { para
     },
   })
 
-  return sendSuccess({ drug })
+  return sendSuccess(drug)
 })
 
 export const PATCH = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {

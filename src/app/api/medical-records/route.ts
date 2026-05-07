@@ -46,7 +46,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   ])
 
   const meta = createMeta(page, pageSize, total)
-  return sendSuccess({ records }, 200, meta)
+  return sendSuccess(records, 200, meta)
 })
 
 export const POST = apiHandler(async (request: NextRequest) => {
@@ -84,5 +84,5 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   })
 
-  return sendSuccess({ record }, 201)
+  return sendSuccess(record, 201)
 })

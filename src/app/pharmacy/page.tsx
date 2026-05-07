@@ -1,62 +1,87 @@
 'use client';
 
 import { useState } from 'react';
-import { useDrugs } from '@/hooks/use-drugs';
-import { Plus, Search, Eye, AlertCircle, Loader } from 'lucide-react';
-import Link from 'next/link';
+import { useDrugs, useCreateDrug } from '@/hooks/use-drugs';
+import { useQuery } from '@tanstack/react-query';
+import Modal from '@/components/ui/Modal';
+import { Plus, Search, AlertCircle, Loader, Package } from 'lucide-react';
+import { toast } from 'sonner';
+
+function useDrugCategories() {
+  return useQuery({
+    queryKey: ['drug-categories'],
+    queryFn: async () => {
+      const r = await fetch('/api/drug-categories');
+      const j = await r.json();
+      return j.data as { id: string; name: string; code: string }[];
+    },
+  });
+}
+
+const UNITS = ['TABLET', 'CAPSULE', 'BOTTLE', 'AMPOULE', 'TUBE', 'SACHET', 'VIAL', 'BOX'];
+const UNIT_LABELS: Record<string, string> = {
+  TABLET: 'Viên', CAPSULE: 'Nang', BOTTLE: 'Chai', AMPOULE: 'Ống tiêm',
+  TUBE: 'Tuýp', SACHET: 'Gói', VIAL: 'Lọ', BOX: 'Hộp',
+};
+
+const emptyForm = {
+  name: '', genericName: '', code: '', unit: 'TABLET', strength: '',
+  manufacturer: '', requirePrescription: false, minStock: 50, categoryId: '',
+};
 
 export default function PharmacyPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [createModal, setCreateModal] = useState(false);
+  const [form, setForm] = useState(typeof emptyForm === 'object' ? { ...emptyForm } : emptyForm);
 
-  const { data: drugsData, isLoading, error } = useDrugs(page, 10, search);
+  const { data: drugsData, isLoading, error } = useDrugs(page, 10, search || undefined);
+  const { data: categories = [] } = useDrugCategories();
+  const createDrug = useCreateDrug();
 
-  const drugs = drugsData?.data || [];
+  const drugs: any[] = drugsData?.data ?? [];
   const meta = drugsData?.meta;
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center text-red-600">
-          <AlertCircle className="w-12 h-12 mx-auto mb-4" />
-          <p>Lỗi khi tải dữ liệu</p>
-        </div>
-      </div>
-    );
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await createDrug.mutateAsync({ ...form, minStock: Number(form.minStock) } as any);
+      toast.success('Thêm thuốc thành công');
+      setCreateModal(false);
+      setForm({ ...emptyForm });
+    } catch {
+      toast.error('Thêm thuốc thất bại');
+    }
   }
+
+  if (error) return (
+    <div className="flex items-center justify-center h-64 text-red-600">
+      <AlertCircle className="w-8 h-8 mr-2" /> Lỗi khi tải dữ liệu
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Kho dược</h1>
-        <button className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors">
-          <Plus className="w-5 h-5" />
-          Thêm thuốc
+        <button
+          onClick={() => setCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
+        >
+          <Plus className="w-5 h-5" /> Thêm thuốc
         </button>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-4">
-        <div className="flex-1 relative">
-          <Search className="w-5 h-5 absolute left-3 top-3 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm thuốc..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-          />
-        </div>
+      <div className="relative">
+        <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+        <input type="text" placeholder="Tìm theo tên, mã thuốc..." value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1); }}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-card border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
+          <div className="flex items-center justify-center h-48">
             <Loader className="w-8 h-8 animate-spin text-sky-600" />
           </div>
         ) : drugs.length > 0 ? (
@@ -65,62 +90,126 @@ export default function PharmacyPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Mã</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Tên thuốc</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Tên chung</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Đơn vị</th>
-                    <th className="px-6 py-3 text-center font-semibold text-gray-700">Hành động</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Mã</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Tên thuốc</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Hoạt chất</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Hàm lượng</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Đơn vị</th>
+                    <th className="px-4 py-3 text-center font-semibold text-gray-700">Tồn kho</th>
+                    <th className="px-4 py-3 text-center font-semibold text-gray-700">Kê đơn</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {drugs.map((drug: any) => (
-                    <tr key={drug.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-900">{drug.code}</td>
-                      <td className="px-6 py-4 text-gray-600">{drug.name}</td>
-                      <td className="px-6 py-4 text-gray-600">{drug.genericName || 'N/A'}</td>
-                      <td className="px-6 py-4 text-gray-600">{drug.unit}</td>
-                      <td className="px-6 py-4 flex items-center justify-center gap-2">
-                        <Link href={`/pharmacy/${drug.id}`}>
-                          <button className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-gray-100">
+                  {drugs.map((drug: any) => {
+                    const totalStock = drug.inventory?.reduce((s: number, inv: any) => s + inv.quantity, 0) ?? 0;
+                    const isLow = totalStock <= (drug.minStock ?? 50);
+                    return (
+                      <tr key={drug.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-mono text-xs text-gray-600">{drug.code}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{drug.name}</td>
+                        <td className="px-4 py-3 text-gray-500">{drug.genericName ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-500">{drug.strength ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-500">{UNIT_LABELS[drug.unit] ?? drug.unit}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${isLow ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                            <Package className="w-3 h-3" /> {totalStock}
+                            {isLow && ' ⚠'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {drug.requirePrescription
+                            ? <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">Có</span>
+                            : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">Không</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination */}
             {meta && meta.totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
-                <p className="text-sm text-gray-600">
-                  Trang {meta.page} / {meta.totalPages} ({meta.total} thuốc)
-                </p>
+              <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50 text-sm">
+                <span className="text-gray-500">Trang {meta.page}/{meta.totalPages} ({meta.total} thuốc)</span>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(Math.max(1, page - 1))}
-                    disabled={page === 1}
-                    className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-100"
-                  >
-                    Trước
-                  </button>
-                  <button
-                    onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
-                    disabled={page === meta.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-100"
-                  >
-                    Sau
-                  </button>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                    className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-100">Trước</button>
+                  <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page === meta.totalPages}
+                    className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-100">Sau</button>
                 </div>
               </div>
             )}
           </>
         ) : (
-          <div className="flex items-center justify-center h-64 text-gray-500">Không có thuốc</div>
+          <div className="flex items-center justify-center h-48 text-gray-400">Không có thuốc</div>
         )}
       </div>
+
+      {/* Create Modal */}
+      {createModal && (
+        <Modal title="Thêm thuốc mới" open={true} onClose={() => setCreateModal(false)}>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tên thuốc *</label>
+                <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                  required />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Hoạt chất</label>
+                <input type="text" value={form.genericName} onChange={e => setForm(f => ({ ...f, genericName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Mã thuốc *</label>
+                <input type="text" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                  required />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Hàm lượng</label>
+                <input type="text" value={form.strength} placeholder="VD: 500mg"
+                  onChange={e => setForm(f => ({ ...f, strength: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Đơn vị *</label>
+                <select value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm">
+                  {UNITS.map(u => <option key={u} value={u}>{UNIT_LABELS[u]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nhà sản xuất</label>
+                <input type="text" value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nhóm thuốc *</label>
+                <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                  required>
+                  <option value="">Chọn nhóm thuốc</option>
+                  {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="rx" checked={form.requirePrescription}
+                onChange={e => setForm(f => ({ ...f, requirePrescription: e.target.checked }))} />
+              <label htmlFor="rx" className="text-sm text-gray-700">Yêu cầu đơn thuốc</label>
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" disabled={createDrug.isPending}
+                className="flex-1 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-gray-400 text-white rounded-lg font-medium text-sm">
+                {createDrug.isPending ? 'Đang lưu...' : 'Thêm thuốc'}
+              </button>
+              <button type="button" onClick={() => setCreateModal(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">Hủy</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

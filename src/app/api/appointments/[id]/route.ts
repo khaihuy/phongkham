@@ -34,7 +34,7 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     throw error("NOT_FOUND", 404, "Cuộc hẹn không tìm thấy")
   }
 
-  return sendSuccess({ appointment })
+  return sendSuccess(appointment)
 })
 
 export const PUT = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -54,7 +54,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
     },
   })
 
-  return sendSuccess({ appointment })
+  return sendSuccess(appointment)
 })
 
 export const DELETE = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -69,7 +69,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: { para
     },
   })
 
-  return sendSuccess({ appointment })
+  return sendSuccess(appointment)
 })
 
 export const PATCH = apiHandler(
@@ -90,6 +90,6 @@ export const PATCH = apiHandler(
       },
     })
 
-    return sendSuccess({ appointment })
+    return sendSuccess(appointment)
   }
 )

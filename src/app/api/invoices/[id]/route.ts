@@ -38,11 +38,9 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
   const remainingAmount = Number(invoice.totalAmount) - paidAmount
 
   return sendSuccess({
-    invoice: {
-      ...invoice,
-      paidAmount,
-      remainingAmount,
-    },
+    ...invoice,
+    paidAmount,
+    remainingAmount,
   })
 })
 
@@ -97,7 +95,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
     },
   })
 
-  return sendSuccess({ invoice: updated })
+  return sendSuccess(updated)
 })
 
 export const DELETE = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -111,7 +109,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: { para
     },
   })
 
-  return sendSuccess({ invoice })
+  return sendSuccess(invoice)
 })
 
 export const PATCH = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -146,7 +144,7 @@ export const PATCH = apiHandler(async (request: NextRequest, { params }: { param
       },
     })
 
-    return sendSuccess({ invoice: updated })
+    return sendSuccess(updated)
   }
 
   if (action === "add-payment") {
@@ -181,7 +179,7 @@ export const PATCH = apiHandler(async (request: NextRequest, { params }: { param
       // Partial payments: keep invoice status as ISSUED (no PARTIAL in InvoiceStatus enum)
     }
 
-    return sendSuccess({ payment }, 201)
+    return sendSuccess(payment, 201)
   }
 
   throw error("BAD_REQUEST", 400, "Invalid action")

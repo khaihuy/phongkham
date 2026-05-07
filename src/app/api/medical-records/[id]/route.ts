@@ -33,7 +33,7 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     throw error("NOT_FOUND", 404, "Hồ sơ bệnh án không tìm thấy")
   }
 
-  return sendSuccess({ record })
+  return sendSuccess(record)
 })
 
 export const PUT = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -59,7 +59,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
     },
   })
 
-  return sendSuccess({ record })
+  return sendSuccess(record)
 })
 
 export const POST = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -104,7 +104,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
       include: { items: { include: { drug: true } } },
     })
 
-    return sendSuccess({ prescription }, 201)
+    return sendSuccess(prescription, 201)
   }
 
   if (action === "add-lab-order") {
@@ -119,7 +119,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
       },
     })
 
-    return sendSuccess({ labOrder }, 201)
+    return sendSuccess(labOrder, 201)
   }
 
   if (action === "add-image-order") {
@@ -134,7 +134,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
       },
     })
 
-    return sendSuccess({ imageOrder }, 201)
+    return sendSuccess(imageOrder, 201)
   }
 
   throw error("BAD_REQUEST", 400, "Invalid action")

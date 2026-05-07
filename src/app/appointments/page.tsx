@@ -252,14 +252,17 @@ export default function AppointmentsPage() {
             </select>
             <select
               value={form.doctorId}
-              onChange={(e) => setForm({ ...form, doctorId: e.target.value })}
+              onChange={(e) => {
+                const doc = doctors.find((d: any) => d.id === e.target.value);
+                setForm({ ...form, doctorId: e.target.value, branchId: doc?.branchId ?? '' });
+              }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
               required
             >
               <option value="">Chọn bác sĩ</option>
               {doctors.map((d: any) => (
                 <option key={d.id} value={d.id}>
-                  {d.user.fullName}
+                  {d.user?.fullName ?? d.user?.username}
                 </option>
               ))}
             </select>
