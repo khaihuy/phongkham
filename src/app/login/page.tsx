@@ -33,7 +33,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push(callbackUrl);
+      window.location.href = callbackUrl;
     } catch (err) {
       setError('Đã xảy ra lỗi khi đăng nhập');
       setIsLoading(false);
