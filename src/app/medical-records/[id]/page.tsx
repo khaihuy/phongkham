@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 
 function fmt(d: string | null | undefined) {
@@ -116,6 +117,41 @@ export default function MedicalRecordDetailPage() {
   const set = (key: keyof EditForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => f ? { ...f, [key]: e.target.value } : f);
 
+  const [completing, setCompleting] = useState(false);
+
+  async function handleComplete() {
+    if (!record) return;
+    setCompleting(true);
+    try {
+      const r1 = await fetch(`/api/appointments/${record.appointmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'COMPLETED' }),
+      });
+      if (!r1.ok) throw new Error('Không thể cập nhật lịch hẹn');
+
+      if (!record.appointment?.invoice) {
+        const r2 = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientId: record.patientId,
+            appointmentId: record.appointmentId,
+            items: [],
+          }),
+        });
+        if (!r2.ok) throw new Error('Không thể tạo hóa đơn');
+      }
+
+      qc.invalidateQueries({ queryKey: ['medical-record', id] });
+      toast.success('Đã hoàn tất khám');
+    } catch (e: any) {
+      toast.error(e.message ?? 'Lỗi không xác định');
+    } finally {
+      setCompleting(false);
+    }
+  }
+
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
       <Loader className="w-8 h-8 animate-spin text-sky-600" />
@@ -142,7 +178,29 @@ export default function MedicalRecordDetailPage() {
           <span>/</span>
           <span className="text-gray-900 font-semibold">{record.recordCode}</span>
         </div>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex gap-2 flex-wrap justify-end">
+          {/* Billing link if invoice exists */}
+          {record.appointment?.invoice && (
+            <Link
+              href={`/billing/${record.appointment.invoice.id}`}
+              className="flex items-center gap-1.5 px-4 py-2 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-lg text-sm font-medium"
+            >
+              <CreditCard className="w-4 h-4" /> Xem hóa đơn
+            </Link>
+          )}
+
+          {/* Complete exam button */}
+          {!editing && record.appointment?.status !== 'COMPLETED' && (
+            <button
+              onClick={handleComplete}
+              disabled={completing}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium disabled:bg-gray-400"
+            >
+              <CheckCircle className="w-4 h-4" />
+              {completing ? 'Đang xử lý...' : 'Hoàn tất khám'}
+            </button>
+          )}
+
           {editing ? (
             <>
               <button
@@ -179,6 +237,39 @@ export default function MedicalRecordDetailPage() {
           <InfoItem label="Mã hồ sơ" value={record.recordCode} />
         </div>
       </div>
+
+      {/* Vital signs from appointment */}
+      {(() => {
+        const vs = record.appointment?.vitalSigns as any;
+        if (!vs || typeof vs !== 'object' || Object.keys(vs).length === 0) return null;
+        const items: { label: string; value: string | null }[] = [
+          (vs.systolic != null && vs.diastolic != null)
+            ? { label: 'HA', value: `${vs.systolic}/${vs.diastolic} mmHg` }
+            : null,
+          vs.heartRate != null ? { label: 'Nhịp tim', value: `${vs.heartRate} bpm` } : null,
+          vs.temperature != null ? { label: 'Nhiệt độ', value: `${vs.temperature} °C` } : null,
+          vs.weight != null ? { label: 'Cân nặng', value: `${vs.weight} kg` } : null,
+          vs.height != null ? { label: 'Chiều cao', value: `${vs.height} cm` } : null,
+          vs.spo2 != null ? { label: 'SpO₂', value: `${vs.spo2} %` } : null,
+        ].filter(Boolean) as { label: string; value: string }[];
+        if (items.length === 0) return null;
+        return (
+          <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="w-4 h-4 text-rose-500" />
+              <h2 className="font-semibold text-gray-800 text-sm">Sinh hiệu</h2>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-3">
+              {items.map(item => (
+                <div key={item.label} className="flex flex-col">
+                  <span className="text-xs text-gray-500">{item.label}</span>
+                  <span className="font-semibold text-gray-800">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Main clinical info */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-5">

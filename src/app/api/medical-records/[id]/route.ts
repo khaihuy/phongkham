@@ -15,7 +15,9 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
   const record = await prisma.medicalRecord.findUnique({
     where: { id: params.id },
     include: {
-      appointment: true,
+      appointment: {
+        include: { invoice: { select: { id: true, invoiceCode: true, status: true } } },
+      },
       patient: true,
       doctor: { include: { user: true } },
       diagnoses: true,
