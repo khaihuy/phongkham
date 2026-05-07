@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useInvoices, useAddPayment, useCreateInvoice, useIssueInvoice } from '@/hooks/use-invoices';
 import { usePatients } from '@/hooks/use-patients';
 import Modal from '@/components/ui/Modal';
@@ -51,6 +52,21 @@ export default function BillingPage() {
   const [payForm, setPayForm] = useState({ amount: '', method: 'CASH', notes: '' });
   const [createForm, setCreateForm] = useState({
     patientId: '', serviceName: 'Khám tổng quát', quantity: 1, unitPrice: '300000', notes: '',
+  });
+
+  const { data: debtSummary } = useQuery({
+    queryKey: ['billing-debt-summary'],
+    queryFn: async () => {
+      const [draft, issued] = await Promise.all([
+        fetch('/api/invoices?status=DRAFT&pageSize=1').then(r => r.json()),
+        fetch('/api/invoices?status=ISSUED&pageSize=1').then(r => r.json()),
+      ]);
+      return {
+        draftCount: draft.meta?.total ?? 0,
+        issuedCount: issued.meta?.total ?? 0,
+      };
+    },
+    refetchInterval: 60000,
   });
 
   const { data: invoicesData, isLoading, error } = useInvoices(page, 10, { status: statusFilter || undefined });
@@ -139,6 +155,32 @@ export default function BillingPage() {
           <Plus className="w-5 h-5" /> Hóa đơn mới
         </button>
       </div>
+
+      {/* Debt summary */}
+      {debtSummary && (debtSummary.draftCount > 0 || debtSummary.issuedCount > 0) && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs text-amber-600 font-medium">Hóa đơn chưa phát</p>
+              <p className="text-2xl font-bold text-amber-800">{debtSummary.draftCount}</p>
+            </div>
+            <button onClick={() => setStatusFilter('DRAFT')} className="ml-auto text-xs text-amber-700 hover:underline">Xem →</button>
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-xs text-red-600 font-medium">Chưa thanh toán</p>
+              <p className="text-2xl font-bold text-red-800">{debtSummary.issuedCount}</p>
+            </div>
+            <button onClick={() => setStatusFilter('ISSUED')} className="ml-auto text-xs text-red-700 hover:underline">Xem →</button>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">

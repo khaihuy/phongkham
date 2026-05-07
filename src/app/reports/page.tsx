@@ -34,7 +34,7 @@ function lastOfLastMonthStr() {
 
 export default function ReportsPage() {
   const { data: dashboard, isLoading, error } = useDashboard();
-  const [tab, setTab] = useState<'revenue' | 'appointments'>('revenue');
+  const [tab, setTab] = useState<'revenue' | 'appointments' | 'doctors'>('revenue');
 
   // Date range state
   const [dateFrom, setDateFrom] = useState(firstOfMonthStr());
@@ -54,6 +54,16 @@ export default function ReportsPage() {
     setAppliedFrom(from);
     setAppliedTo(to);
   }
+
+  // Doctor stats query
+  const { data: doctorStats, isLoading: loadingDoctors } = useQuery({
+    queryKey: ['reports-doctors', appliedFrom, appliedTo],
+    queryFn: async () => {
+      const r = await fetch(`/api/reports/doctors?dateFrom=${appliedFrom}&dateTo=${appliedTo}`);
+      return (await r.json()).data ?? [];
+    },
+    enabled: tab === 'doctors',
+  });
 
   // Revenue query
   const { data: revenueResult, isLoading: loadingRevenue } = useQuery({
@@ -155,6 +165,10 @@ export default function ReportsPage() {
         <button onClick={() => setTab('appointments')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'appointments' ? 'border-sky-600 text-sky-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
           Lịch hẹn hôm nay
+        </button>
+        <button onClick={() => setTab('doctors')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'doctors' ? 'border-sky-600 text-sky-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          Thống kê bác sĩ
         </button>
       </div>
 
@@ -276,6 +290,64 @@ export default function ReportsPage() {
             </>
           ) : (
             <div className="flex items-center justify-center h-48 text-gray-400">Chưa có dữ liệu doanh thu</div>
+          )}
+        </div>
+      )}
+
+      {tab === 'doctors' && (
+        <div className="space-y-4">
+          {loadingDoctors ? (
+            <div className="flex justify-center h-48 items-center"><Loader className="w-8 h-8 animate-spin text-sky-600" /></div>
+          ) : !doctorStats || doctorStats.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">Không có dữ liệu</div>
+          ) : (
+            <>
+              {/* Summary bar chart */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                <h3 className="font-semibold text-gray-800 mb-4">Số lịch hẹn theo bác sĩ</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={doctorStats.slice(0, 10)} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-30} textAnchor="end" interval={0} tick={{ fontSize: 11 }} />
+                    <YAxis />
+                    <Tooltip formatter={(v: any, name: string) => [v, name === 'totalAppointments' ? 'Lịch hẹn' : 'Hoàn thành']} />
+                    <Bar dataKey="totalAppointments" fill="#0ea5e9" name="totalAppointments" radius={[4,4,0,0]} />
+                    <Bar dataKey="completed" fill="#22c55e" name="completed" radius={[4,4,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Table */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Bác sĩ</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Chuyên khoa</th>
+                      <th className="px-4 py-3 text-center font-semibold text-gray-700">Tổng lịch hẹn</th>
+                      <th className="px-4 py-3 text-center font-semibold text-gray-700">Hoàn thành</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {doctorStats.map((d: any) => (
+                      <tr key={d.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-900">{d.name}</td>
+                        <td className="px-4 py-3 text-gray-500 text-xs">{d.specialty}</td>
+                        <td className="px-4 py-3 text-center font-bold text-sky-700">{d.totalAppointments}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-green-700 font-semibold">{d.completed}</span>
+                          {d.totalAppointments > 0 && (
+                            <span className="text-gray-400 text-xs ml-1">({Math.round(d.completed/d.totalAppointments*100)}%)</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-800">{formatFull(d.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
