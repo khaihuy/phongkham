@@ -11,26 +11,22 @@ import { toast } from 'sonner';
 interface Supplier {
   id: string;
   name: string;
-  code: string;
-  contactName: string | null;
-  phone: string | null;
+  contact: string | null;
+  phone: string;
   email: string | null;
   address: string | null;
   taxCode: string | null;
-  notes: string | null;
   isActive: boolean;
   createdAt: string;
 }
 
 const emptyForm = {
   name: '',
-  code: '',
-  contactName: '',
   phone: '',
+  contact: '',
   email: '',
   address: '',
   taxCode: '',
-  notes: '',
 };
 
 // ─── Hooks ───────────────────────────────────────────────────────────────────
@@ -96,13 +92,11 @@ function SupplierModal({ open, onClose, editing }: SupplierModalProps) {
     editing
       ? {
           name: editing.name,
-          code: editing.code,
-          contactName: editing.contactName ?? '',
-          phone: editing.phone ?? '',
+          phone: editing.phone,
+          contact: editing.contact ?? '',
           email: editing.email ?? '',
           address: editing.address ?? '',
           taxCode: editing.taxCode ?? '',
-          notes: editing.notes ?? '',
         }
       : { ...emptyForm }
   );
@@ -154,11 +148,11 @@ function SupplierModal({ open, onClose, editing }: SupplierModalProps) {
             />
           </div>
           <div>
-            <label className={labelCls}>Mã nhà cung cấp *</label>
+            <label className={labelCls}>Số điện thoại *</label>
             <input
-              type="text"
-              value={form.code}
-              onChange={e => setField('code', e.target.value)}
+              type="tel"
+              value={form.phone}
+              onChange={e => setField('phone', e.target.value)}
               className={inputCls}
               required
             />
@@ -167,17 +161,8 @@ function SupplierModal({ open, onClose, editing }: SupplierModalProps) {
             <label className={labelCls}>Người liên hệ</label>
             <input
               type="text"
-              value={form.contactName}
-              onChange={e => setField('contactName', e.target.value)}
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Số điện thoại</label>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={e => setField('phone', e.target.value)}
+              value={form.contact}
+              onChange={e => setField('contact', e.target.value)}
               className={inputCls}
             />
           </div>
@@ -199,21 +184,12 @@ function SupplierModal({ open, onClose, editing }: SupplierModalProps) {
               className={inputCls}
             />
           </div>
-          <div className="col-span-2">
+          <div>
             <label className={labelCls}>Địa chỉ</label>
             <input
               type="text"
               value={form.address}
               onChange={e => setField('address', e.target.value)}
-              className={inputCls}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className={labelCls}>Ghi chú</label>
-            <textarea
-              value={form.notes}
-              onChange={e => setField('notes', e.target.value)}
-              rows={2}
               className={inputCls}
             />
           </div>
@@ -302,7 +278,7 @@ export default function SuppliersPage() {
         <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
         <input
           type="text"
-          placeholder="Tìm theo tên, mã, người liên hệ..."
+          placeholder="Tìm theo tên, người liên hệ, SĐT..."
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -325,11 +301,11 @@ export default function SuppliersPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Mã NCC</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Tên nhà cung cấp</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Liên hệ</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">SĐT</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Email</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Mã số thuế</th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700">Trạng thái</th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700">Hành động</th>
                   </tr>
@@ -344,16 +320,16 @@ export default function SuppliersPage() {
                   ) : (
                     suppliers.map(supplier => (
                       <tr key={supplier.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-mono text-xs text-gray-600">{supplier.code}</td>
                         <td className="px-4 py-3 font-medium text-gray-900">
                           <div>{supplier.name}</div>
                           {supplier.address && (
                             <div className="text-xs text-gray-400 truncate max-w-[200px]">{supplier.address}</div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-gray-600">{supplier.contactName ?? '—'}</td>
-                        <td className="px-4 py-3 text-gray-600">{supplier.phone ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-600">{supplier.contact ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-600">{supplier.phone}</td>
                         <td className="px-4 py-3 text-gray-600">{supplier.email ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-600">{supplier.taxCode ?? '—'}</td>
                         <td className="px-4 py-3 text-center">
                           {supplier.isActive ? (
                             <span className="inline-flex px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
