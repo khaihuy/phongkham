@@ -11,6 +11,14 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Quản trị viên', DOCTOR: 'Bác sĩ', RECEPTIONIST: 'Lễ tân',
   PHARMACIST: 'Dược sĩ', ACCOUNTANT: 'Kế toán',
 };
+const ROLE_PERMS: Record<string, string> = {
+  ADMIN: 'Toàn quyền: quản lý người dùng, cài đặt hệ thống, xem mọi báo cáo',
+  DOCTOR: 'Khám bệnh, kê đơn, xem hồ sơ bệnh nhân, ghi kết quả xét nghiệm',
+  RECEPTIONIST: 'Tiếp nhận bệnh nhân, đặt lịch hẹn, quản lý phòng chờ, thanh toán',
+  PHARMACIST: 'Quản lý kho thuốc, xuất nhập dược phẩm, xem đơn thuốc',
+  ACCOUNTANT: 'Quản lý hóa đơn, thanh toán, xuất báo cáo tài chính',
+};
+
 const ROLE_COLORS: Record<string, string> = {
   ADMIN: 'bg-purple-100 text-purple-700', DOCTOR: 'bg-blue-100 text-blue-700',
   RECEPTIONIST: 'bg-green-100 text-green-700', PHARMACIST: 'bg-amber-100 text-amber-700',
@@ -24,7 +32,7 @@ export default function UsersPage() {
   const [createModal, setCreateModal] = useState(false);
   const [editModal, setEditModal] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyForm });
-  const [editForm, setEditForm] = useState({ fullName: '', phone: '', role: '', isActive: true, password: '' });
+  const [editForm, setEditForm] = useState({ fullName: '', email: '', phone: '', role: '', isActive: true, password: '' });
 
   const { data: users = [], isLoading, error } = useQuery({
     queryKey: ['users'],
@@ -50,7 +58,8 @@ export default function UsersPage() {
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
       const payload: any = {};
       if (data.fullName) payload.fullName = data.fullName;
-      if (data.phone) payload.phone = data.phone;
+      if (data.email) payload.email = data.email;
+      if (data.phone !== undefined) payload.phone = data.phone;
       if (data.role) payload.role = data.role;
       if (data.password) payload.password = data.password;
       if (data.isActive !== undefined) payload.isActive = data.isActive;
@@ -74,7 +83,7 @@ export default function UsersPage() {
 
   function openEdit(user: any) {
     setEditModal(user);
-    setEditForm({ fullName: user.fullName, phone: user.phone ?? '', role: user.role, isActive: user.isActive, password: '' });
+    setEditForm({ fullName: user.fullName, email: user.email ?? '', phone: user.phone ?? '', role: user.role, isActive: user.isActive, password: '' });
   }
 
   if (error) return (
@@ -199,22 +208,41 @@ export default function UsersPage() {
                 <input type="text" value={editForm.fullName} onChange={e => setEditForm(f => ({ ...f, fullName: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
               </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  placeholder="email@phongkham.vn" />
+              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">SĐT</label>
                 <input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Vai trò</label>
-                <select value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                  {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                </select>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Mật khẩu mới</label>
+                <input type="password" value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Để trống = không đổi"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Mật khẩu mới (để trống nếu không đổi)</label>
-                <input type="password" value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                <label className="block text-xs font-medium text-gray-700 mb-2">Vai trò & Quyền hạn</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {ROLES.map(r => (
+                    <label key={r} className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                      editForm.role === r ? 'border-sky-500 bg-sky-50' : 'border-gray-200 hover:bg-gray-50'
+                    }`}>
+                      <input type="radio" name="role" value={r} checked={editForm.role === r}
+                        onChange={() => setEditForm(f => ({ ...f, role: r }))} className="mt-0.5" />
+                      <div>
+                        <p className={`text-sm font-medium ${editForm.role === r ? 'text-sky-700' : 'text-gray-800'}`}>
+                          {ROLE_LABELS[r]}
+                        </p>
+                        <p className="text-xs text-gray-500">{ROLE_PERMS[r]}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="flex gap-2 pt-2">

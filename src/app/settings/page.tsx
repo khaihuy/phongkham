@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LogOut, User, Shield, Building2, Phone, Mail, MapPin, Globe, FileText, Hash, Save, Loader } from 'lucide-react';
+import { LogOut, User, Shield, Building2, Phone, Mail, MapPin, Globe, FileText, Hash, Save, Loader, DatabaseZap } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -45,6 +45,23 @@ export default function SettingsPage() {
       });
     }
   }, [clinicData]);
+
+  const [seedLoading, setSeedLoading] = useState(false);
+
+  async function handleSeedReference() {
+    if (!confirm('Nạp dữ liệu mẫu (thuốc, dịch vụ, xét nghiệm)? Dữ liệu hiện có sẽ không bị xoá (upsert).')) return;
+    setSeedLoading(true);
+    try {
+      const r = await fetch('/api/admin/seed-reference', { method: 'POST' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? 'Lỗi');
+      toast.success(`Đã nạp: ${j.data?.drugs ?? 0} thuốc, ${j.data?.services ?? 0} dịch vụ`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSeedLoading(false);
+    }
+  }
 
   const updateClinic = useMutation({
     mutationFn: async (data: typeof clinicForm) => {
@@ -167,11 +184,18 @@ export default function SettingsPage() {
               </div>
 
               {isAdmin ? (
-                <button type="submit" disabled={updateClinic.isPending}
-                  className="flex items-center gap-2 px-5 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors">
-                  <Save className="w-4 h-4" />
-                  {updateClinic.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
-                </button>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button type="submit" disabled={updateClinic.isPending}
+                    className="flex items-center gap-2 px-5 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors">
+                    <Save className="w-4 h-4" />
+                    {updateClinic.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                  <button type="button" onClick={handleSeedReference} disabled={seedLoading}
+                    className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors">
+                    <DatabaseZap className="w-4 h-4" />
+                    {seedLoading ? 'Đang nạp...' : 'Nạp dữ liệu mẫu'}
+                  </button>
+                </div>
               ) : (
                 <p className="text-sm text-gray-400 italic">Chỉ quản trị viên mới có thể chỉnh sửa thông tin phòng khám.</p>
               )}
