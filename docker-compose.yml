@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phongkham-app
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://phongkham:phongkham123@db:5432/phongkham_db
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - phongkham-net
+
+  db:
+    image: postgres:16-alpine
+    container_name: phongkham-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: phongkham_db
+      POSTGRES_USER: phongkham
+      POSTGRES_PASSWORD: phongkham123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phongkham -d phongkham_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - phongkham-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: phongkham-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - phongkham-net
+
+  # Development only — comment out in production
+  adminer:
+    image: adminer
+    container_name: phongkham-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - phongkham-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  phongkham-net:
+    driver: bridge
