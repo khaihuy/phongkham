@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity, Plus } from 'lucide-react';
+import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity, Plus, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from '@/components/ui/Modal';
 
@@ -148,6 +148,7 @@ export default function MedicalRecordDetailPage() {
   const [showImgModal, setShowImgModal] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [invoicePreview, setInvoicePreview] = useState<any>(null);
+  const [markingRead, setMarkingRead] = useState(false);
 
   const { data: record, isLoading, error } = useQuery({
     queryKey: ['medical-record', id],
@@ -294,6 +295,27 @@ export default function MedicalRecordDetailPage() {
       toast.error(e.message);
     } finally {
       setCompleting(false);
+    }
+  }
+
+  async function handleMarkResultsRead() {
+    const newLabs = (record?.labOrders ?? []).filter((o: any) => o.status === 'COMPLETED' && !o.reviewedAt);
+    const newImgs = (record?.imageOrders ?? []).filter((o: any) => o.status === 'COMPLETED' && !o.reviewedAt);
+    if (!newLabs.length && !newImgs.length) return;
+    setMarkingRead(true);
+    try {
+      await fetch('/api/notifications/lab-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ labIds: newLabs.map((o: any) => o.id), imageIds: newImgs.map((o: any) => o.id) }),
+      });
+      qc.invalidateQueries({ queryKey: ['medical-record', id] });
+      qc.invalidateQueries({ queryKey: ['lab-notifications'] });
+      toast.success('Đã đánh dấu đã đọc tất cả kết quả');
+    } catch {
+      toast.error('Lỗi');
+    } finally {
+      setMarkingRead(false);
     }
   }
 
@@ -532,6 +554,38 @@ export default function MedicalRecordDetailPage() {
         </div>
       </div>
 
+      {/* New results banner */}
+      {(() => {
+        const newLabs = (record.labOrders ?? []).filter((o: any) => o.status === 'COMPLETED' && !o.reviewedAt);
+        const newImgs = (record.imageOrders ?? []).filter((o: any) => o.status === 'COMPLETED' && !o.reviewedAt);
+        const total = newLabs.length + newImgs.length;
+        if (total === 0) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex-shrink-0 w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center">
+                <Bell className="w-4 h-4 text-white" />
+              </span>
+              <div>
+                <p className="font-semibold text-amber-900">
+                  {total} kết quả xét nghiệm mới chưa đọc
+                </p>
+                <p className="text-xs text-amber-700">
+                  {newLabs.length > 0 && `${newLabs.length} xét nghiệm`}
+                  {newLabs.length > 0 && newImgs.length > 0 && ' · '}
+                  {newImgs.length > 0 && `${newImgs.length} CĐHA`}
+                </p>
+              </div>
+            </div>
+            <button onClick={handleMarkResultsRead} disabled={markingRead}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors">
+              <CheckCircle className="w-4 h-4" />
+              {markingRead ? 'Đang xử lý...' : 'Đánh dấu đã đọc'}
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Lab orders & CĐHA section */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center justify-between">
@@ -557,7 +611,7 @@ export default function MedicalRecordDetailPage() {
 
         {/* Existing lab orders */}
         {record.labOrders?.map((lab: any) => (
-          <div key={lab.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg text-sm">
+          <div key={lab.id} className={`flex items-center justify-between p-3 rounded-lg text-sm border ${lab.status === 'COMPLETED' && !lab.reviewedAt ? 'bg-green-50 border-green-300' : 'bg-purple-50 border-transparent'}`}>
             <div>
               <span className="font-medium text-gray-800">{lab.testName}</span>
               {lab.service?.price && (
@@ -577,7 +631,7 @@ export default function MedicalRecordDetailPage() {
 
         {/* Existing image orders */}
         {record.imageOrders?.map((img: any) => (
-          <div key={img.id} className="flex items-center justify-between p-3 bg-teal-50 rounded-lg text-sm">
+          <div key={img.id} className={`flex items-center justify-between p-3 rounded-lg text-sm border ${img.status === 'COMPLETED' && !img.reviewedAt ? 'bg-green-50 border-green-300' : 'bg-teal-50 border-transparent'}`}>
             <div>
               <span className="font-medium text-gray-800">{img.imagingType}</span>
               {img.service?.price && (

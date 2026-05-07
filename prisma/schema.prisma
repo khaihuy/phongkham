@@ -450,6 +450,7 @@ model LabOrder {
   result          String?
   resultDate      DateTime?
   status          String   @default("PENDING")
+  reviewedAt      DateTime?
   createdAt       DateTime @default(now())
   serviceId       String?
 
@@ -466,6 +467,7 @@ model ImageOrder {
   findings        String?
   imageUrl        String?
   status          String   @default("PENDING")
+  reviewedAt      DateTime?
   createdAt       DateTime @default(now())
   serviceId       String?
 
