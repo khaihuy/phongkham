@@ -30,26 +30,17 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
   }
 
   const body = await request.json()
-  const { name, code, contactName, phone, email, address, taxCode, notes, isActive } = body
-
-  if (code && code !== supplier.code) {
-    const existing = await prisma.supplier.findUnique({ where: { code } })
-    if (existing) {
-      throw error("CONFLICT", 409, "Mã nhà cung cấp đã tồn tại")
-    }
-  }
+  const { name, phone, contact, email, address, taxCode, isActive } = body
 
   const updated = await prisma.supplier.update({
     where: { id: params.id },
     data: {
       ...(name !== undefined && { name }),
-      ...(code !== undefined && { code }),
-      ...(contactName !== undefined && { contactName }),
       ...(phone !== undefined && { phone }),
+      ...(contact !== undefined && { contact }),
       ...(email !== undefined && { email }),
       ...(address !== undefined && { address }),
       ...(taxCode !== undefined && { taxCode }),
-      ...(notes !== undefined && { notes }),
       ...(isActive !== undefined && { isActive }),
     },
   })

@@ -23,8 +23,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
   if (search) {
     where.OR = [
       { name: { contains: search, mode: "insensitive" as any } },
-      { code: { contains: search, mode: "insensitive" as any } },
-      { contactName: { contains: search, mode: "insensitive" as any } },
+      { contact: { contains: search, mode: "insensitive" as any } },
+      { phone: { contains: search } },
     ]
   }
 
@@ -46,30 +46,23 @@ export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
   const body = await request.json()
-  const { name, code, contactName, phone, email, address, taxCode, notes } = body
+  const { name, phone, contact, email, address, taxCode } = body
 
   if (!name) {
     throw error("VALIDATION_ERROR", 400, "Tên nhà cung cấp là bắt buộc")
   }
-  if (!code) {
-    throw error("VALIDATION_ERROR", 400, "Mã nhà cung cấp là bắt buộc")
-  }
-
-  const existing = await prisma.supplier.findUnique({ where: { code } })
-  if (existing) {
-    throw error("CONFLICT", 409, "Mã nhà cung cấp đã tồn tại")
+  if (!phone) {
+    throw error("VALIDATION_ERROR", 400, "Số điện thoại là bắt buộc")
   }
 
   const supplier = await prisma.supplier.create({
     data: {
       name,
-      code,
-      contactName: contactName ?? null,
-      phone: phone ?? null,
+      phone,
+      contact: contact ?? null,
       email: email ?? null,
       address: address ?? null,
       taxCode: taxCode ?? null,
-      notes: notes ?? null,
     },
   })
 
