@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ZodError, ZodSchema } from "zod"
-import { getServerSession } from "next-auth"
-import { authConfig } from "./auth"
+import { auth } from "./auth"
 
 export interface ApiResponse<T = any> {
   data?: T
@@ -120,7 +119,7 @@ export async function validateBody<T>(
  * Get authenticated user
  */
 export async function getAuthUser() {
-  const session = await getServerSession(authConfig)
+  const session = await auth()
   if (!session?.user) {
     throw new ApiError("UNAUTHORIZED", 401, "Unauthorized")
   }
@@ -181,11 +180,11 @@ export function createMeta(
  * Wrap API route handler with error handling
  */
 export function apiHandler(
-  handler: (req: NextRequest) => Promise<NextResponse>
+  handler: (req: NextRequest, context?: any) => Promise<NextResponse>
 ) {
-  return async (req: NextRequest) => {
+  return async (req: NextRequest, context?: any) => {
     try {
-      return await handler(req)
+      return await handler(req, context)
     } catch (err) {
       if (err instanceof ApiError) {
         return sendError(err.statusCode, err.code, err.message, err.details)

@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server"
-import { getServerSession } from "next-auth"
-import { authConfig } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { sendSuccess, sendError } from "@/lib/api-utils"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authConfig)
+    const session = await auth()
 
     if (!session?.user) {
       return sendError(401, "UNAUTHORIZED", "Chưa đăng nhập")
