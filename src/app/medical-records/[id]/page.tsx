@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity } from 'lucide-react';
+import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import Modal from '@/components/ui/Modal';
 
 function fmt(d: string | null | undefined) {
   if (!d) return '—';
@@ -20,6 +21,10 @@ function fmtDateTime(d: string | null | undefined) {
 function toInputDate(d: string | null | undefined) {
   if (!d) return '';
   return new Date(d).toISOString().split('T')[0];
+}
+
+function formatCurrency(n: any) {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n));
 }
 
 const PRESC_STATUS: Record<string, string> = {
@@ -45,12 +50,104 @@ interface EditForm {
   followUpNotes: string;
 }
 
+function LabOrderForm({ services, onSubmit, loading }: { services: any[]; onSubmit: (d: { serviceId: string; name: string; code: string; instructions: string }) => void; loading: boolean }) {
+  const [selectedId, setSelectedId] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const selected = services.find((s) => s.id === selectedId);
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Loại xét nghiệm *</label>
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"
+        >
+          <option value="">— Chọn xét nghiệm —</option>
+          {services.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} ({new Intl.NumberFormat('vi-VN').format(Number(s.price))}đ)
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Chỉ dẫn (tuỳ chọn)</label>
+        <input
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          placeholder="Nhịn ăn 8 tiếng, lấy mẫu buổi sáng..."
+        />
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button
+          disabled={!selectedId || loading}
+          onClick={() => onSubmit({ serviceId: selected?.id, name: selected?.name, code: selected?.code, instructions })}
+          className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium"
+        >
+          {loading ? 'Đang lưu...' : 'Xác nhận chỉ định'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ImgOrderForm({ services, onSubmit, loading }: { services: any[]; onSubmit: (d: { serviceId: string; name: string; instructions: string }) => void; loading: boolean }) {
+  const [selectedId, setSelectedId] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const selected = services.find((s) => s.id === selectedId);
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Loại CĐHA *</label>
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"
+        >
+          <option value="">— Chọn CĐHA —</option>
+          {services.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} ({new Intl.NumberFormat('vi-VN').format(Number(s.price))}đ)
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Chỉ dẫn (tuỳ chọn)</label>
+        <input
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          placeholder="Ghi chú thêm..."
+        />
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button
+          disabled={!selectedId || loading}
+          onClick={() => onSubmit({ serviceId: selected?.id, name: selected?.name, instructions })}
+          className="flex-1 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium"
+        >
+          {loading ? 'Đang lưu...' : 'Xác nhận chỉ định'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function MedicalRecordDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditForm | null>(null);
+  const [showLabModal, setShowLabModal] = useState(false);
+  const [showImgModal, setShowImgModal] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [invoicePreview, setInvoicePreview] = useState<any>(null);
 
   const { data: record, isLoading, error } = useQuery({
     queryKey: ['medical-record', id],
@@ -61,6 +158,23 @@ export default function MedicalRecordDetailPage() {
       return j.data;
     },
   });
+
+  const { data: servicesData } = useQuery({
+    queryKey: ['services-all'],
+    queryFn: async () => {
+      const r = await fetch('/api/services?pageSize=200&isActive=true');
+      return (await r.json()).data ?? [];
+    },
+  });
+
+  const labServiceList = (servicesData ?? []).filter((s: any) => s.code?.startsWith('XN'));
+  const imgServiceList = (servicesData ?? []).filter(
+    (s: any) =>
+      s.code?.startsWith('CD') ||
+      s.code?.startsWith('SIEU') ||
+      s.code?.startsWith('XRAY') ||
+      s.code?.startsWith('ECHO'),
+  );
 
   const updateMutation = useMutation({
     mutationFn: async (data: EditForm) => {
@@ -86,6 +200,53 @@ export default function MedicalRecordDetailPage() {
       setForm(null);
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  const addLabOrder = useMutation({
+    mutationFn: async (data: { serviceId: string; name: string; code: string; instructions: string }) => {
+      const r = await fetch('/api/lab-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          medicalRecordId: record.id,
+          testName: data.name,
+          testCode: data.code,
+          serviceId: data.serviceId,
+          instructions: data.instructions,
+        }),
+      });
+      if (!r.ok) throw new Error('Thêm thất bại');
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['medical-record', id] });
+      toast.success('Đã thêm chỉ định xét nghiệm');
+      setShowLabModal(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const addImgOrder = useMutation({
+    mutationFn: async (data: { serviceId: string; name: string; instructions: string }) => {
+      const r = await fetch('/api/image-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          medicalRecordId: record.id,
+          imagingType: data.name,
+          serviceId: data.serviceId,
+          instructions: data.instructions,
+        }),
+      });
+      if (!r.ok) throw new Error('Thêm thất bại');
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['medical-record', id] });
+      toast.success('Đã thêm chỉ định CĐHA');
+      setShowImgModal(false);
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const handleEdit = () => {
@@ -115,53 +276,39 @@ export default function MedicalRecordDetailPage() {
   };
 
   const set = (key: keyof EditForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm(f => f ? { ...f, [key]: e.target.value } : f);
-
-  const [completing, setCompleting] = useState(false);
+    setForm((f) => (f ? { ...f, [key]: e.target.value } : f));
 
   async function handleComplete() {
-    if (!record) return;
+    if (!confirm('Hoàn tất khám và tạo hóa đơn tự động?')) return;
     setCompleting(true);
     try {
-      const r1 = await fetch(`/api/appointments/${record.appointmentId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'COMPLETED' }),
+      const r = await fetch(`/api/appointments/${record.appointmentId}/complete`, {
+        method: 'POST',
       });
-      if (!r1.ok) throw new Error('Không thể cập nhật lịch hẹn');
-
-      if (!record.appointment?.invoice) {
-        const r2 = await fetch('/api/invoices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patientId: record.patientId,
-            appointmentId: record.appointmentId,
-            items: [],
-          }),
-        });
-        if (!r2.ok) throw new Error('Không thể tạo hóa đơn');
-      }
-
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? 'Lỗi');
       qc.invalidateQueries({ queryKey: ['medical-record', id] });
-      toast.success('Đã hoàn tất khám');
+      setInvoicePreview(j.data);
+      toast.success(`Đã hoàn tất khám — Hóa đơn ${j.data.invoice.invoiceCode} (${j.data.itemCount} khoản)`);
     } catch (e: any) {
-      toast.error(e.message ?? 'Lỗi không xác định');
+      toast.error(e.message);
     } finally {
       setCompleting(false);
     }
   }
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader className="w-8 h-8 animate-spin text-sky-600" />
-    </div>
-  );
-  if (error || !record) return (
-    <div className="flex items-center justify-center h-64 text-red-600">
-      <AlertCircle className="w-8 h-8 mr-2" /> Không tìm thấy hồ sơ bệnh án
-    </div>
-  );
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader className="w-8 h-8 animate-spin text-sky-600" />
+      </div>
+    );
+  if (error || !record)
+    return (
+      <div className="flex items-center justify-center h-64 text-red-600">
+        <AlertCircle className="w-8 h-8 mr-2" /> Không tìm thấy hồ sơ bệnh án
+      </div>
+    );
 
   const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm';
   const textareaCls = `${inputCls} resize-none`;
@@ -193,7 +340,7 @@ export default function MedicalRecordDetailPage() {
           {!editing && record.appointment?.status !== 'COMPLETED' && (
             <button
               onClick={handleComplete}
-              disabled={completing}
+              disabled={completing || record.appointment?.status === 'COMPLETED'}
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium disabled:bg-gray-400"
             >
               <CheckCircle className="w-4 h-4" />
@@ -229,6 +376,25 @@ export default function MedicalRecordDetailPage() {
         </div>
       </div>
 
+      {/* Invoice preview banner after completion */}
+      {invoicePreview && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-emerald-800">
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+            <span className="font-medium">Hoàn tất khám — Hóa đơn {invoicePreview.invoice.invoiceCode}</span>
+            <span className="text-sm text-emerald-600">
+              ({invoicePreview.itemCount} khoản, {formatCurrency(invoicePreview.invoice.totalAmount)})
+            </span>
+          </div>
+          <Link
+            href={`/billing/${invoicePreview.invoice.id}`}
+            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium"
+          >
+            <CreditCard className="w-4 h-4" /> Đến thanh toán
+          </Link>
+        </div>
+      )}
+
       {/* Patient + doctor info */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -243,7 +409,7 @@ export default function MedicalRecordDetailPage() {
         const vs = record.appointment?.vitalSigns as any;
         if (!vs || typeof vs !== 'object' || Object.keys(vs).length === 0) return null;
         const items: { label: string; value: string | null }[] = [
-          (vs.systolic != null && vs.diastolic != null)
+          vs.systolic != null && vs.diastolic != null
             ? { label: 'HA', value: `${vs.systolic}/${vs.diastolic} mmHg` }
             : null,
           vs.heartRate != null ? { label: 'Nhịp tim', value: `${vs.heartRate} bpm` } : null,
@@ -260,7 +426,7 @@ export default function MedicalRecordDetailPage() {
               <h2 className="font-semibold text-gray-800 text-sm">Sinh hiệu</h2>
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-3">
-              {items.map(item => (
+              {items.map((item) => (
                 <div key={item.label} className="flex flex-col">
                   <span className="text-xs text-gray-500">{item.label}</span>
                   <span className="font-semibold text-gray-800">{item.value}</span>
@@ -366,6 +532,74 @@ export default function MedicalRecordDetailPage() {
         </div>
       </div>
 
+      {/* Lab orders & CĐHA section */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FlaskConical className="w-5 h-5 text-purple-600" />
+            <h2 className="font-semibold text-gray-800">Chỉ định xét nghiệm & CĐHA</h2>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowLabModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-lg font-medium"
+            >
+              <Plus className="w-3.5 h-3.5" /> Xét nghiệm
+            </button>
+            <button
+              onClick={() => setShowImgModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs rounded-lg font-medium"
+            >
+              <Plus className="w-3.5 h-3.5" /> CĐHA
+            </button>
+          </div>
+        </div>
+
+        {/* Existing lab orders */}
+        {record.labOrders?.map((lab: any) => (
+          <div key={lab.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg text-sm">
+            <div>
+              <span className="font-medium text-gray-800">{lab.testName}</span>
+              {lab.service?.price && (
+                <span className="ml-2 text-purple-600 font-medium">{formatCurrency(lab.service.price)}</span>
+              )}
+              {lab.result && <p className="text-xs text-green-700 mt-0.5">✓ {lab.result}</p>}
+            </div>
+            <span
+              className={`px-2 py-0.5 rounded text-xs font-medium ${
+                lab.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+              }`}
+            >
+              {lab.status === 'PENDING' ? 'Chờ XN' : lab.status === 'COMPLETED' ? 'Có kết quả' : lab.status}
+            </span>
+          </div>
+        ))}
+
+        {/* Existing image orders */}
+        {record.imageOrders?.map((img: any) => (
+          <div key={img.id} className="flex items-center justify-between p-3 bg-teal-50 rounded-lg text-sm">
+            <div>
+              <span className="font-medium text-gray-800">{img.imagingType}</span>
+              {img.service?.price && (
+                <span className="ml-2 text-teal-600 font-medium">{formatCurrency(img.service.price)}</span>
+              )}
+              {img.findings && <p className="text-xs text-green-700 mt-0.5">✓ {img.findings}</p>}
+            </div>
+            <span
+              className={`px-2 py-0.5 rounded text-xs font-medium ${
+                img.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+              }`}
+            >
+              {img.status === 'PENDING' ? 'Chờ CĐHA' : img.status === 'COMPLETED' ? 'Có kết quả' : img.status}
+            </span>
+          </div>
+        ))}
+
+        {!record.labOrders?.length && !record.imageOrders?.length && (
+          <p className="text-gray-400 text-sm text-center py-4">Chưa có chỉ định xét nghiệm</p>
+        )}
+      </div>
+
       {/* Prescriptions */}
       {record.prescriptions && record.prescriptions.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
@@ -386,8 +620,10 @@ export default function MedicalRecordDetailPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-t border-gray-100">
                       <tr>
-                        {['Tên thuốc', 'Liều dùng', 'Tần suất', 'Thời gian', 'Số lượng'].map(h => (
-                          <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
+                        {['Tên thuốc', 'Liều dùng', 'Tần suất', 'Thời gian', 'Số lượng'].map((h) => (
+                          <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                            {h}
+                          </th>
                         ))}
                       </tr>
                     </thead>
@@ -415,50 +651,26 @@ export default function MedicalRecordDetailPage() {
         </div>
       )}
 
-      {/* Lab orders */}
-      {record.labOrders && record.labOrders.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <FlaskConical className="w-5 h-5 text-purple-600" />
-            <h2 className="font-semibold text-gray-800">Xét nghiệm ({record.labOrders.length})</h2>
-          </div>
-          <div className="space-y-2">
-            {record.labOrders.map((lab: any, i: number) => (
-              <div key={lab.id ?? i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
-                <div>
-                  <span className="font-medium text-gray-800">{lab.testName ?? lab.name ?? `Xét nghiệm ${i + 1}`}</span>
-                  {lab.notes && <p className="text-xs text-gray-500 mt-0.5">{lab.notes}</p>}
-                </div>
-                {lab.status && (
-                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">{lab.status}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Lab order modal */}
+      {showLabModal && (
+        <Modal title="Chỉ định xét nghiệm" open={true} onClose={() => setShowLabModal(false)}>
+          <LabOrderForm
+            services={labServiceList}
+            onSubmit={(d) => addLabOrder.mutate(d)}
+            loading={addLabOrder.isPending}
+          />
+        </Modal>
       )}
 
-      {/* Image orders */}
-      {record.imageOrders && record.imageOrders.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <ScanLine className="w-5 h-5 text-teal-600" />
-            <h2 className="font-semibold text-gray-800">Chẩn đoán hình ảnh ({record.imageOrders.length})</h2>
-          </div>
-          <div className="space-y-2">
-            {record.imageOrders.map((img: any, i: number) => (
-              <div key={img.id ?? i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
-                <div>
-                  <span className="font-medium text-gray-800">{img.imagingType ?? img.name ?? `Hình ảnh ${i + 1}`}</span>
-                  {img.notes && <p className="text-xs text-gray-500 mt-0.5">{img.notes}</p>}
-                </div>
-                {img.status && (
-                  <span className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-xs font-medium">{img.status}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Image order modal */}
+      {showImgModal && (
+        <Modal title="Chỉ định CĐHA" open={true} onClose={() => setShowImgModal(false)}>
+          <ImgOrderForm
+            services={imgServiceList}
+            onSubmit={(d) => addImgOrder.mutate(d)}
+            loading={addImgOrder.isPending}
+          />
+        </Modal>
       )}
     </div>
   );

@@ -26,8 +26,8 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
           items: { include: { drug: true } },
         },
       },
-      labOrders: true,
-      imageOrders: true,
+      labOrders: { include: { service: { select: { id: true, code: true, price: true } } } },
+      imageOrders: { include: { service: { select: { id: true, code: true, price: true } } } },
     },
   })
 
@@ -56,8 +56,8 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
       doctor: { select: { id: true, user: { select: { fullName: true } } } },
       diagnoses: true,
       prescriptions: { include: { items: true } },
-      labOrders: true,
-      imageOrders: true,
+      labOrders: { include: { service: { select: { id: true, code: true, price: true } } } },
+      imageOrders: { include: { service: { select: { id: true, code: true, price: true } } } },
     },
   })
 
