@@ -11,6 +11,10 @@ import {
   CreditCard,
   Stethoscope,
   X,
+  Pill,
+  BarChart3,
+  Settings,
+  UserCog,
 } from 'lucide-react';
 
 const navItems = [
@@ -19,10 +23,11 @@ const navItems = [
   { href: '/appointments', label: 'Lịch hẹn', icon: CalendarDays },
   { href: '/doctors', label: 'Bác sĩ', icon: UserRound },
   { href: '/medical-records', label: 'Hồ sơ bệnh án', icon: FileText },
-  { href: '/pharmacy', label: 'Dược phẩm', icon: Stethoscope },
+  { href: '/pharmacy', label: 'Dược phẩm', icon: Pill },
   { href: '/billing', label: 'Thanh toán', icon: CreditCard },
-  { href: '/reports', label: 'Báo cáo', icon: LayoutDashboard },
-  { href: '/settings', label: 'Cài đặt', icon: Users },
+  { href: '/reports', label: 'Báo cáo', icon: BarChart3 },
+  { href: '/settings/users', label: 'Người dùng', icon: UserCog },
+  { href: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -71,7 +76,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = item.href === '/settings'
+              ? pathname === '/settings'
+              : item.href === '/'
+                ? pathname === '/'
+                : pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.href}

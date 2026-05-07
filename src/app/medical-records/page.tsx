@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMedicalRecords } from '@/hooks/use-medical-records';
-import { AlertCircle, Loader, Eye } from 'lucide-react';
+import { AlertCircle, Loader, Eye, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 function formatDate(dateStr: string): string {
@@ -31,7 +31,14 @@ export default function MedicalRecordsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <h1 className="text-3xl font-bold text-gray-900">Hồ sơ bệnh án</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Hồ sơ bệnh án</h1>
+        <Link href="/medical-records/new">
+          <button className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors">
+            <Plus className="w-5 h-5" /> Tạo hồ sơ
+          </button>
+        </Link>
+      </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-card border border-gray-100 overflow-hidden">
