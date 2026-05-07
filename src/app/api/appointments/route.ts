@@ -12,11 +12,13 @@ import {
 import { createAppointmentSchema } from "@/lib/validations"
 import { addDays } from "date-fns"
 
+const VALID_APPOINTMENT_STATUSES = ["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"] as const
+
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
   const { searchParams } = request.nextUrl
-  const status = searchParams.get("status")
+  const statusParam = searchParams.get("status")
   const doctorId = searchParams.get("doctorId")
   const patientId = searchParams.get("patientId")
   const dateFrom = searchParams.get("dateFrom")
@@ -26,27 +28,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     pageSize: searchParams.get("pageSize"),
   })
 
-  // Build where clause
-  const where: any = {
-    isActive: { $ne: true },
-  }
-
-  if (status) {
-    where.status = status
-  }
-  if (doctorId) {
-    where.doctorId = doctorId
-  }
-  if (patientId) {
-    where.patientId = patientId
-  }
-  if (dateFrom) {
-    where.scheduledDate = { $gte: new Date(dateFrom) }
-  }
-  if (dateTo) {
-    if (!where.scheduledDate) where.scheduledDate = {}
-    where.scheduledDate.$lte = new Date(dateTo)
-  }
+  // Validate status against enum
+  const status = statusParam && VALID_APPOINTMENT_STATUSES.includes(statusParam as any) ? (statusParam as any) : undefined
 
   const [appointments, total] = await Promise.all([
     prisma.appointment.findMany({
