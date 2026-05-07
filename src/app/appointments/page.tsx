@@ -7,7 +7,7 @@ import { useDoctors } from '@/hooks/use-doctors';
 import { usePatients } from '@/hooks/use-patients';
 import Modal from '@/components/ui/Modal';
 import { AppointmentStatusBadge } from '@/components/ui/Badge';
-import { Plus, Search, AlertCircle, Loader, List, Calendar, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Plus, Search, AlertCircle, Loader, List, Calendar, ChevronLeft, ChevronRight, Pencil, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, parseISO, isSameDay } from 'date-fns';
@@ -32,6 +32,14 @@ const emptyForm = {
   chiefComplaint: '',
   notes: '',
   serviceId: '',
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  GENERAL: 'Khám tổng quát',
+  SPECIALIST: 'Khám chuyên khoa',
+  FOLLOW_UP: 'Tái khám',
+  EMERGENCY: 'Cấp cứu',
+  TELEMEDICINE: 'Khám online',
 };
 
 type FormData = typeof emptyForm;
@@ -225,6 +233,7 @@ export default function AppointmentsPage() {
   const [modalMode, setModalMode] = useState<'add' | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [form, setForm] = useState<FormData>(emptyForm);
+  const [createdApt, setCreatedApt] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
@@ -267,15 +276,15 @@ export default function AppointmentsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await createAppointment.mutateAsync({
+      const result = await createAppointment.mutateAsync({
         ...form,
         scheduledDate: new Date(form.scheduledDate).toISOString(),
         duration: form.duration,
         serviceId: form.serviceId || undefined,
       } as any);
-      toast.success('Thêm lịch hẹn thành công');
       setModalMode(null);
       setForm(emptyForm);
+      setCreatedApt((result as any)?.data ?? result);
     } catch (err) {
       toast.error('Có lỗi xảy ra');
     }
@@ -449,6 +458,14 @@ export default function AppointmentsPage() {
                               >
                                 <Pencil className="w-4 h-4" />
                               </Link>
+                              <Link
+                                href={`/appointments/${apt.id}/print`}
+                                target="_blank"
+                                title="In phiếu khám"
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                              >
+                                <Printer className="w-4 h-4" />
+                              </Link>
                             </div>
                           </td>
                         </tr>
@@ -617,6 +634,38 @@ export default function AppointmentsPage() {
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Success modal after creating appointment */}
+      {createdApt && (
+        <Modal title="Đặt lịch thành công" open={true} onClose={() => setCreatedApt(null)}>
+          <div className="space-y-4 py-2">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="text-green-800 font-semibold text-lg">{createdApt.patient?.fullName ?? '—'}</p>
+              <p className="text-3xl font-black text-green-700 font-mono mt-1">{createdApt.scheduledTime}</p>
+              <p className="text-sm text-green-600">
+                {createdApt.scheduledDate ? new Date(createdApt.scheduledDate).toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
+              </p>
+              <p className="text-xs text-green-500 font-mono mt-1">{createdApt.appointmentCode}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href={`/appointments/${createdApt.id}/print`}
+                target="_blank"
+                onClick={() => setCreatedApt(null)}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
+              >
+                <Printer className="w-5 h-5" /> In phiếu khám
+              </Link>
+              <button
+                onClick={() => setCreatedApt(null)}
+                className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
