@@ -1,9 +1,126 @@
 'use client';
 
+import { useState } from 'react';
+import { useDrugs } from '@/hooks/use-drugs';
+import { Plus, Search, Eye, AlertCircle, Loader } from 'lucide-react';
+import Link from 'next/link';
+
 export default function PharmacyPage() {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+
+  const { data: drugsData, isLoading, error } = useDrugs(page, 10, search);
+
+  const drugs = drugsData?.data || [];
+  const meta = drugsData?.meta;
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center text-red-600">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+          <p>Lỗi khi tải dữ liệu</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-center h-64 text-gray-400">
-      <p className="text-lg">Tính năng dược phẩm đang được phát triển.</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Kho dược</h1>
+        <button className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors">
+          <Plus className="w-5 h-5" />
+          Thêm thuốc
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="flex gap-4">
+        <div className="flex-1 relative">
+          <Search className="w-5 h-5 absolute left-3 top-3 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Tìm kiếm thuốc..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl shadow-card border border-gray-100 overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader className="w-8 h-8 animate-spin text-sky-600" />
+          </div>
+        ) : drugs.length > 0 ? (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Mã</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Tên thuốc</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Tên chung</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Đơn vị</th>
+                    <th className="px-6 py-3 text-center font-semibold text-gray-700">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {drugs.map((drug: any) => (
+                    <tr key={drug.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-gray-900">{drug.code}</td>
+                      <td className="px-6 py-4 text-gray-600">{drug.name}</td>
+                      <td className="px-6 py-4 text-gray-600">{drug.genericName || 'N/A'}</td>
+                      <td className="px-6 py-4 text-gray-600">{drug.unit}</td>
+                      <td className="px-6 py-4 flex items-center justify-center gap-2">
+                        <Link href={`/pharmacy/${drug.id}`}>
+                          <button className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {meta && meta.totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <p className="text-sm text-gray-600">
+                  Trang {meta.page} / {meta.totalPages} ({meta.total} thuốc)
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-100"
+                  >
+                    Trước
+                  </button>
+                  <button
+                    onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
+                    disabled={page === meta.totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-100"
+                  >
+                    Sau
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-64 text-gray-500">Không có thuốc</div>
+        )}
+      </div>
     </div>
   );
 }
