@@ -33,9 +33,9 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     throw error("NOT_FOUND", 404, "Hóa đơn không tìm thấy")
   }
 
-  // Calculate totals
-  const paidAmount = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
-  const remainingAmount = parseFloat(invoice.totalAmount.toString()) - parseFloat(paidAmount.toString())
+  // Calculate totals (Prisma Decimal → number)
+  const paidAmount = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0)
+  const remainingAmount = Number(invoice.totalAmount) - paidAmount
 
   return sendSuccess({
     invoice: {
@@ -171,8 +171,8 @@ export const PATCH = apiHandler(async (request: NextRequest, { params }: { param
     })
 
     if (invoice) {
-      const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
-      if (parseFloat(totalPaid.toString()) >= parseFloat(invoice.totalAmount.toString())) {
+      const totalPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0)
+      if (totalPaid >= Number(invoice.totalAmount)) {
         await prisma.invoice.update({
           where: { id: params.id },
           data: { status: "PAID" },

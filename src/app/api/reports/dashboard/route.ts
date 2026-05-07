@@ -82,7 +82,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     take: 5,
   })
 
-  const totalUnpaid = unpaidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0n)
+  const totalUnpaid = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0)
 
   // Get active doctors
   const activeDoctors = await prisma.doctor.count({
