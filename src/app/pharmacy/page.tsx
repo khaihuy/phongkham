@@ -4,7 +4,17 @@ import { useState } from 'react';
 import { useDrugs, useCreateDrug } from '@/hooks/use-drugs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal from '@/components/ui/Modal';
-import { Plus, Search, AlertCircle, Loader, Package, ArrowDownToLine } from 'lucide-react';
+import { Plus, Search, AlertCircle, Loader, Package, ArrowDownToLine, ClipboardList, CheckCheck, User, Clock } from 'lucide-react';
+
+const fmt = (n: any) => new Intl.NumberFormat('vi-VN').format(Number(n));
+const fmtTime = (d: any) => d ? new Date(d).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '—';
+
+const PRESC_STATUS_LABELS: Record<string, string> = { PENDING: 'Chờ phát', DISPENSED: 'Đã phát', CANCELLED: 'Đã hủy' };
+const PRESC_STATUS_COLORS: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-700',
+  DISPENSED: 'bg-green-100 text-green-700',
+  CANCELLED: 'bg-gray-100 text-gray-500',
+};
 import { toast } from 'sonner';
 
 function useDrugCategories() {
@@ -57,17 +67,48 @@ function useImportStock() {
 }
 
 export default function PharmacyPage() {
+  const [tab, setTab] = useState<'inventory' | 'dispense'>('dispense');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [importModal, setImportModal] = useState(false);
   const [form, setForm] = useState(typeof emptyForm === 'object' ? { ...emptyForm } : emptyForm);
   const [stockForm, setStockForm] = useState({ ...emptyStockForm });
+  const [dispensingId, setDispensingId] = useState<string | null>(null);
 
+  const qc = useQueryClient();
   const { data: drugsData, isLoading, error } = useDrugs(page, 10, search || undefined);
   const { data: categories = [] } = useDrugCategories();
   const createDrug = useCreateDrug();
   const importStock = useImportStock();
+
+  const { data: prescData, isLoading: prescLoading, refetch: refetchPrescs } = useQuery({
+    queryKey: ['prescriptions', 'PENDING'],
+    queryFn: async () => {
+      const r = await fetch('/api/prescriptions?status=PENDING&pageSize=50');
+      return (await r.json()).data ?? [];
+    },
+    refetchInterval: 15000,
+    enabled: tab === 'dispense',
+  });
+  const pendingPrescriptions: any[] = prescData ?? [];
+
+  async function handleDispense(prescId: string) {
+    if (!confirm('Xác nhận phát thuốc cho đơn này?')) return;
+    setDispensingId(prescId);
+    try {
+      const r = await fetch(`/api/prescriptions/${prescId}/dispense`, { method: 'POST' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? 'Lỗi phát thuốc');
+      toast.success('Đã phát thuốc thành công');
+      refetchPrescs();
+      qc.invalidateQueries({ queryKey: ['drugs'] });
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDispensingId(null);
+    }
+  }
 
   const drugs: any[] = drugsData?.data ?? [];
   const meta = drugsData?.meta;
@@ -110,22 +151,138 @@ export default function PharmacyPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Kho dược</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { setStockForm({ ...emptyStockForm }); setImportModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
-          >
-            <ArrowDownToLine className="w-5 h-5" /> Nhập kho
-          </button>
-          <button
-            onClick={() => setCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
-          >
-            <Plus className="w-5 h-5" /> Thêm thuốc
-          </button>
-        </div>
+        <h1 className="text-3xl font-bold text-gray-900">Dược phẩm</h1>
+        {tab === 'inventory' && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setStockForm({ ...emptyStockForm }); setImportModal(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+            >
+              <ArrowDownToLine className="w-5 h-5" /> Nhập kho
+            </button>
+            <button
+              onClick={() => setCreateModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
+            >
+              <Plus className="w-5 h-5" /> Thêm thuốc
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
+        {[
+          { key: 'dispense', label: 'Phát thuốc', icon: ClipboardList, badge: pendingPrescriptions.length },
+          { key: 'inventory', label: 'Kho dược', icon: Package },
+        ].map(t => {
+          const Icon = t.icon;
+          return (
+            <button key={t.key} onClick={() => setTab(t.key as any)}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                tab === t.key ? 'border-sky-600 text-sky-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}>
+              <Icon className="w-4 h-4" />
+              {t.label}
+              {'badge' in t && (t as any).badge > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded-full font-bold">{(t as any).badge}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Dispense Tab */}
+      {tab === 'dispense' && (
+        <div className="space-y-4">
+          {prescLoading ? (
+            <div className="flex items-center justify-center h-48"><Loader className="w-8 h-8 animate-spin text-sky-600" /></div>
+          ) : pendingPrescriptions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-gray-400 gap-2 bg-white rounded-xl border border-gray-100 shadow-sm">
+              <CheckCheck className="w-12 h-12 text-green-400" />
+              <p className="font-medium">Không có đơn thuốc chờ phát</p>
+              <p className="text-sm">Tất cả đơn thuốc đã được xử lý</p>
+            </div>
+          ) : (
+            pendingPrescriptions.map((presc: any) => {
+              const patient = presc.medicalRecord?.patient;
+              const doctor = presc.medicalRecord?.doctor?.user;
+              const totalItems = presc.items?.length ?? 0;
+              const isDispensing = dispensingId === presc.id;
+
+              return (
+                <div key={presc.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 py-3 bg-amber-50 border-b border-amber-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{patient?.fullName ?? '—'}</p>
+                        <p className="text-xs text-gray-500">{patient?.patientCode} • BS: {doctor?.fullName ?? '—'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500 font-mono">{presc.prescriptionCode}</p>
+                        <p className="text-xs text-gray-400 flex items-center gap-1 justify-end">
+                          <Clock className="w-3 h-3" /> {fmtTime(presc.createdAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDispense(presc.id)}
+                        disabled={isDispensing}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <CheckCheck className="w-4 h-4" />
+                        {isDispensing ? 'Đang xử lý...' : 'Xuất thuốc'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Drug items */}
+                  <div className="divide-y divide-gray-50">
+                    {presc.items?.map((item: any, i: number) => {
+                      const stock = item.drug?.inventory?.reduce((s: number, inv: any) => s + inv.quantity, 0) ?? 0;
+                      const insufficient = stock < item.quantity;
+                      return (
+                        <div key={i} className={`flex items-center justify-between px-5 py-3 text-sm ${insufficient ? 'bg-red-50' : ''}`}>
+                          <div className="flex-1">
+                            <p className={`font-medium ${insufficient ? 'text-red-700' : 'text-gray-800'}`}>
+                              {item.drug?.name ?? '—'}
+                              {item.drug?.strength && <span className="text-gray-400 font-normal ml-1">{item.drug.strength}</span>}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {item.dosage} • {item.frequency} • {item.duration}
+                            </p>
+                          </div>
+                          <div className="text-right ml-4 flex-shrink-0">
+                            <p className={`font-semibold ${insufficient ? 'text-red-600' : 'text-gray-900'}`}>
+                              SL: {item.quantity} {item.drug?.unit ? `(${item.drug.unit.toLowerCase()})` : ''}
+                            </p>
+                            <p className={`text-xs ${insufficient ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                              Tồn: {stock} {insufficient && '⚠ Không đủ'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="px-5 py-2 bg-gray-50 border-t border-gray-100 flex justify-between text-xs text-gray-500">
+                    <span>{totalItems} loại thuốc</span>
+                    {presc.notes && <span className="italic">{presc.notes}</span>}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Inventory Tab */}
+      {tab === 'inventory' && (<>
 
       <div className="relative">
         <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
@@ -345,6 +502,7 @@ export default function PharmacyPage() {
           </form>
         </Modal>
       )}
+      </>)}
     </div>
   );
 }
