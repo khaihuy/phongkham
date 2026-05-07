@@ -379,6 +379,7 @@ model Appointment {
   duration        Int               @default(30)
   chiefComplaint  String?
   notes           String?
+  serviceId       String?
   cancelReason    String?
   vitalSigns      Json?
   reminderSent    Boolean           @default(false)
@@ -393,6 +394,7 @@ model Appointment {
   medicalRecord  MedicalRecord?
   invoice        Invoice?
   telemedicine   Telemedicine?
+  service        Service?       @relation("AppointmentService", fields: [serviceId], references: [id])
 }
 
 // ─────────────────────────────────────────
@@ -449,8 +451,10 @@ model LabOrder {
   resultDate      DateTime?
   status          String   @default("PENDING")
   createdAt       DateTime @default(now())
+  serviceId       String?
 
   medicalRecord MedicalRecord @relation(fields: [medicalRecordId], references: [id])
+  service       Service?      @relation(fields: [serviceId], references: [id])
 }
 
 model ImageOrder {
@@ -463,8 +467,10 @@ model ImageOrder {
   imageUrl        String?
   status          String   @default("PENDING")
   createdAt       DateTime @default(now())
+  serviceId       String?
 
   medicalRecord MedicalRecord @relation(fields: [medicalRecordId], references: [id])
+  service       Service?      @relation(fields: [serviceId], references: [id])
 }
 
 // ─────────────────────────────────────────
@@ -610,6 +616,9 @@ model Service {
 
   clinic       Clinic        @relation(fields: [clinicId], references: [id])
   invoiceItems InvoiceItem[]
+  labOrders    LabOrder[]
+  imageOrders  ImageOrder[]
+  appointments Appointment[] @relation("AppointmentService")
 }
 
 model Invoice {

@@ -55,7 +55,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
   const body = await request.json()
-  const { medicalRecordId, imagingType, bodyPart, instructions } = body
+  const { medicalRecordId, imagingType, bodyPart, instructions, serviceId } = body
 
   if (!medicalRecordId) {
     throw error("VALIDATION_ERROR", 400, "medicalRecordId là bắt buộc")
@@ -77,6 +77,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       imagingType,
       bodyPart: bodyPart ?? null,
       instructions: instructions ?? null,
+      serviceId: serviceId ?? null,
     },
     include: {
       medicalRecord: {
