@@ -6,6 +6,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Bắt đầu seed dữ liệu...');
 
+  // Skip if already seeded
+  const existingClinic = await prisma.clinic.findFirst();
+  if (existingClinic) {
+    console.log('⏭️  Dữ liệu đã tồn tại, bỏ qua seed.');
+    return;
+  }
+
   // 1. Create clinic & branches
   const clinic = await prisma.clinic.create({
     data: {
@@ -62,7 +69,7 @@ async function main() {
     prisma.specialty.create({
       data: {
         name: 'Nội khoa',
-        code: 'NGOAI',
+        code: 'NOI',
         description: 'Khám và điều trị bệnh nội khoa',
       },
     }),
