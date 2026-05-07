@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAppointments, useCreateAppointment, useUpdateAppointmentStatus } from '@/hooks/use-appointments';
 import { useDoctors } from '@/hooks/use-doctors';
 import { usePatients } from '@/hooks/use-patients';
@@ -30,6 +31,7 @@ const emptyForm = {
   duration: 30,
   chiefComplaint: '',
   notes: '',
+  serviceId: '',
 };
 
 type FormData = typeof emptyForm;
@@ -244,6 +246,15 @@ export default function AppointmentsPage() {
 
   const { data: patientsData } = usePatients(1, 100);
   const { data: doctorsData } = useDoctors(1, 100);
+  const { data: kbServices } = useQuery({
+    queryKey: ['services-kb'],
+    queryFn: async () => {
+      const r = await fetch('/api/services?pageSize=100');
+      const j = await r.json();
+      return (j.data ?? []).filter((s: any) => s.code?.startsWith('KB'));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
   const createAppointment = useCreateAppointment();
   const updateStatus = useUpdateAppointmentStatus(selectedAppointment?.id || '');
 
@@ -260,6 +271,7 @@ export default function AppointmentsPage() {
         ...form,
         scheduledDate: new Date(form.scheduledDate).toISOString(),
         duration: form.duration,
+        serviceId: form.serviceId || undefined,
       } as any);
       toast.success('Thêm lịch hẹn thành công');
       setModalMode(null);
@@ -573,6 +585,21 @@ export default function AppointmentsPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
               rows={3}
             />
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Dịch vụ khám</label>
+              <select
+                value={form.serviceId}
+                onChange={(e) => setForm(f => ({ ...f, serviceId: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"
+              >
+                <option value="">— Chọn dịch vụ (tuỳ chọn) —</option>
+                {(kbServices ?? []).map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} — {new Intl.NumberFormat('vi-VN').format(Number(s.price))}đ
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex gap-2">
               <button
                 type="submit"

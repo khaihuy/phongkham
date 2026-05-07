@@ -54,6 +54,7 @@ export const createAppointmentSchema = z.object({
   duration: z.number().int().positive().default(30),
   chiefComplaint: z.string().optional(),
   notes: z.string().optional(),
+  serviceId: z.string().optional(),
 })
 
 export const updateAppointmentSchema = createAppointmentSchema.partial()

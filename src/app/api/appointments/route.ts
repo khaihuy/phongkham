@@ -52,6 +52,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         patient: { select: { id: true, patientCode: true, fullName: true } },
         doctor: { select: { id: true, user: { select: { fullName: true } } } },
         room: { select: { id: true, name: true } },
+        service: { select: { id: true, name: true, price: true } },
       },
     }),
     prisma.appointment.count({
