@@ -29,7 +29,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       where,
       skip,
       take: pageSize,
-      orderBy: { orderedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       include: {
         medicalRecord: {
           include: {
@@ -55,7 +55,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
   const body = await request.json()
-  const { medicalRecordId, imagingType, bodyPart, notes } = body
+  const { medicalRecordId, imagingType, bodyPart, instructions } = body
 
   if (!medicalRecordId) {
     throw error("VALIDATION_ERROR", 400, "medicalRecordId là bắt buộc")
@@ -76,7 +76,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       medicalRecordId,
       imagingType,
       bodyPart: bodyPart ?? null,
-      notes: notes ?? null,
+      instructions: instructions ?? null,
     },
     include: {
       medicalRecord: {

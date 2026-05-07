@@ -39,16 +39,15 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
   }
 
   const body = await request.json()
-  const { result, status, completedAt, resultUrl, notes } = body
+  const { result, status, resultDate, instructions } = body
 
   const updated = await prisma.labOrder.update({
     where: { id: params.id },
     data: {
       ...(result !== undefined && { result }),
       ...(status !== undefined && { status }),
-      ...(completedAt !== undefined && { completedAt: completedAt ? new Date(completedAt) : null }),
-      ...(resultUrl !== undefined && { resultUrl }),
-      ...(notes !== undefined && { notes }),
+      ...(resultDate !== undefined && { resultDate: resultDate ? new Date(resultDate) : null }),
+      ...(instructions !== undefined && { instructions }),
     },
     include: {
       medicalRecord: {
