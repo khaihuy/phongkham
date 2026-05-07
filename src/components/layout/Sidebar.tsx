@@ -24,11 +24,13 @@ import {
   ShieldCheck,
   ConciergeBell,
   Wrench,
+  Monitor,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'Tổng quan', icon: LayoutDashboard },
   { href: '/queue', label: 'Phòng chờ', icon: ConciergeBell },
+  { href: '/queue/display', label: 'Màn hình gọi số', icon: Monitor },
   { href: '/patients', label: 'Bệnh nhân', icon: Users },
   { href: '/appointments', label: 'Lịch hẹn', icon: CalendarDays },
   { href: '/doctors', label: 'Bác sĩ', icon: UserRound },
