@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useDrugs, useCreateDrug } from '@/hooks/use-drugs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal from '@/components/ui/Modal';
-import { Plus, Search, AlertCircle, Loader, Package, ArrowDownToLine, ClipboardList, CheckCheck, User, Clock } from 'lucide-react';
+import { Plus, Search, AlertCircle, Loader, Package, ArrowDownToLine, ClipboardList, CheckCheck, User, Clock, AlertTriangle } from 'lucide-react';
 
 const fmt = (n: any) => new Intl.NumberFormat('vi-VN').format(Number(n));
 const fmtTime = (d: any) => d ? new Date(d).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '—';
@@ -81,6 +81,16 @@ export default function PharmacyPage() {
   const { data: categories = [] } = useDrugCategories();
   const createDrug = useCreateDrug();
   const importStock = useImportStock();
+
+  const { data: alertsData } = useQuery({
+    queryKey: ['pharmacy-alerts'],
+    queryFn: async () => {
+      const r = await fetch('/api/pharmacy/alerts');
+      return (await r.json()).data;
+    },
+    refetchInterval: 60000,
+  });
+  const alerts = alertsData ?? { lowStock: [], expiringSoon: [], totalAlerts: 0 };
 
   const { data: prescData, isLoading: prescLoading, refetch: refetchPrescs } = useQuery({
     queryKey: ['prescriptions', 'PENDING'],
@@ -169,6 +179,57 @@ export default function PharmacyPage() {
           </div>
         )}
       </div>
+
+      {/* Alerts section */}
+      {alerts.totalAlerts > 0 && (
+        <div className="space-y-3">
+          {/* Low stock */}
+          {alerts.lowStock.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <h3 className="font-semibold text-red-800">Tồn kho thấp ({alerts.lowStock.length} loại thuốc)</h3>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {alerts.lowStock.map((d: any) => (
+                  <div key={d.id} className="bg-white rounded-lg px-3 py-2 border border-red-100">
+                    <p className="text-sm font-medium text-gray-800 truncate">{d.name}</p>
+                    <p className="text-xs text-red-600 font-semibold">
+                      Còn: {d.totalStock} / Tối thiểu: {d.minStock}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Expiring soon */}
+          {alerts.expiringSoon.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <h3 className="font-semibold text-amber-800">Sắp hết hạn ({alerts.expiringSoon.length} lô)</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {alerts.expiringSoon.map((d: any) => (
+                  <div key={d.inventoryId} className="bg-white rounded-lg px-3 py-2 border border-amber-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{d.name}</p>
+                      <p className="text-xs text-gray-500">Lô: {d.batchNo} · SL: {d.quantity}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <p className={`text-xs font-bold ${d.daysLeft <= 7 ? 'text-red-600' : 'text-amber-600'}`}>
+                        {d.daysLeft <= 0 ? 'ĐÃ HẾT HẠN' : `Còn ${d.daysLeft} ngày`}
+                      </p>
+                      <p className="text-xs text-gray-400">{new Date(d.expiryDate).toLocaleDateString('vi-VN')}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200">

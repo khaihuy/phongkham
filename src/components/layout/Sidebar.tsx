@@ -64,6 +64,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: pharmaAlerts } = useQuery({
+    queryKey: ['pharmacy-alerts'],
+    queryFn: async () => {
+      const r = await fetch('/api/pharmacy/alerts');
+      if (!r.ok) return { totalAlerts: 0 };
+      return (await r.json()).data;
+    },
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 3 * 60 * 1000,
+  });
+  const pharmacyAlertCount = pharmaAlerts?.totalAlerts ?? 0;
+
   return (
     <>
       {/* Mobile overlay */}
@@ -124,6 +136,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               >
                 <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary-600' : ''}`} />
                 {item.label}
+                {item.href === '/pharmacy' && pharmacyAlertCount > 0 && (
+                  <span className="ml-auto min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                    {pharmacyAlertCount}
+                  </span>
+                )}
               </Link>
             );
           })}
