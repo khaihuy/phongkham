@@ -40,8 +40,15 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (!doctor) throw new Error("Không tìm thấy bác sĩ")
 
   const now = new Date()
-  const scheduledTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
-  const appointmentCode = `VL${String(queueNumber).padStart(3, "0")}-${now.toISOString().slice(0, 10).replace(/-/g, "")}`
+  const vnFormatter = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+  const scheduledTime = vnFormatter.format(now).replace("lúc ", "").trim()
+  const vnDateStr = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" }).format(now) // "yyyy-MM-dd"
+  const appointmentCode = `VL${String(queueNumber).padStart(3, "0")}-${vnDateStr.replace(/-/g, "")}`
 
   const appointment = await prisma.appointment.create({
     data: {
