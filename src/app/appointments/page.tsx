@@ -61,18 +61,62 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Hủy',
 };
 
-// Generate time slots 07:00–18:00 every 30 min
-function generateTimeSlots(): string[] {
+// Generate time slots 07:00–18:00 every 15 min for picker, 30 min for calendar
+function generateTimeSlots(stepMin = 30, fromH = 7, toH = 18): string[] {
   const slots: string[] = [];
-  for (let h = 7; h <= 17; h++) {
-    slots.push(`${String(h).padStart(2, '0')}:00`);
-    if (h < 18) slots.push(`${String(h).padStart(2, '0')}:30`);
+  for (let h = fromH; h <= toH; h++) {
+    for (let m = 0; m < 60; m += stepMin) {
+      if (h === toH && m > 0) break;
+      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
   }
-  slots.push('18:00');
   return slots;
 }
 
-const TIME_SLOTS = generateTimeSlots();
+const TIME_SLOTS = generateTimeSlots(30); // calendar grid uses 30-min buckets
+const PICKER_SLOTS = generateTimeSlots(15); // booking form uses 15-min steps
+
+function TimeSlotPicker({ value, onChange }: { value: string; onChange: (t: string) => void }) {
+  const morningSlots = PICKER_SLOTS.filter(t => parseInt(t) < 12);
+  const afternoonSlots = PICKER_SLOTS.filter(t => parseInt(t) >= 12);
+
+  const SlotGroup = ({ label, slots }: { label: string; slots: string[] }) => (
+    <div>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{label}</p>
+      <div className="grid grid-cols-4 gap-1">
+        {slots.map(t => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => onChange(t)}
+            className={`py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+              value === t
+                ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-sky-400 hover:text-sky-600'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="border border-gray-200 rounded-xl p-3 space-y-3 bg-gray-50/50">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-700">Giờ khám</span>
+        {value && (
+          <span className="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-medium">
+            Đã chọn: {value}
+          </span>
+        )}
+      </div>
+      <SlotGroup label="Buổi sáng (7:00 – 11:45)" slots={morningSlots} />
+      <SlotGroup label="Buổi chiều (12:00 – 18:00)" slots={afternoonSlots} />
+    </div>
+  );
+}
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -275,6 +319,10 @@ export default function AppointmentsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.scheduledTime) {
+      toast.error('Vui lòng chọn giờ khám');
+      return;
+    }
     try {
       const result = await createAppointment.mutateAsync({
         ...form,
@@ -581,20 +629,13 @@ export default function AppointmentsPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
               required
             />
-            <input
-              type="time"
+            <TimeSlotPicker
               value={form.scheduledTime}
-              onChange={(e) => setForm({ ...form, scheduledTime: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-              required
+              onChange={(t) => setForm({ ...form, scheduledTime: t })}
             />
-            <input
-              type="number"
-              placeholder="Thời lượng (phút)"
-              value={form.duration}
-              onChange={(e) => setForm({ ...form, duration: parseInt(e.target.value) || 30 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-            />
+            {!form.scheduledTime && (
+              <p className="text-xs text-red-500 -mt-2">Vui lòng chọn giờ khám</p>
+            )}
             <textarea
               placeholder="Ghi chú"
               value={form.notes}
