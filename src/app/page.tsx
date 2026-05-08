@@ -17,6 +17,15 @@ import {
   CheckCircle2,
   Users2,
   Banknote,
+  UserPlus,
+  FlaskConical,
+  Pill,
+  ReceiptText,
+  BarChart3,
+  MonitorPlay,
+  PackagePlus,
+  FilePlus2,
+  Search,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -201,6 +210,79 @@ function AccountantTodayPanel() {
   );
 }
 
+// ─── Quick actions ───────────────────────────────────────────────────────────
+
+type ShortcutItem = {
+  label: string;
+  description: string;
+  href: string;
+  icon: React.ElementType;
+  color: string; // tailwind bg + text class pair
+};
+
+const SHORTCUTS_BY_ROLE: Record<string, ShortcutItem[]> = {
+  RECEPTIONIST: [
+    { label: 'Đặt lịch hẹn', description: 'Tạo lịch mới cho bệnh nhân', href: '/appointments', icon: CalendarDays, color: 'bg-sky-100 text-sky-600' },
+    { label: 'Thêm bệnh nhân', description: 'Đăng ký bệnh nhân mới', href: '/patients', icon: UserPlus, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Hàng đợi', description: 'Quản lý phòng chờ hôm nay', href: '/queue', icon: Users2, color: 'bg-amber-100 text-amber-600' },
+    { label: 'Màn hình TV', description: 'Bảng gọi số bệnh nhân', href: '/queue/display', icon: MonitorPlay, color: 'bg-violet-100 text-violet-600' },
+    { label: 'Tìm bệnh nhân', description: 'Tra cứu hồ sơ nhanh', href: '/patients', icon: Search, color: 'bg-gray-100 text-gray-600' },
+    { label: 'Hóa đơn', description: 'Xem hóa đơn chưa thanh toán', href: '/billing', icon: ReceiptText, color: 'bg-red-100 text-red-600' },
+  ],
+  DOCTOR: [
+    { label: 'Lịch hẹn hôm nay', description: 'Xem danh sách bệnh nhân', href: '/appointments', icon: CalendarDays, color: 'bg-sky-100 text-sky-600' },
+    { label: 'Hồ sơ bệnh án', description: 'Mở hồ sơ và kê đơn', href: '/medical-records', icon: FilePlus2, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Kết quả XN', description: 'Xem kết quả xét nghiệm mới', href: '/medical-records', icon: FlaskConical, color: 'bg-amber-100 text-amber-600' },
+    { label: 'Tìm bệnh nhân', description: 'Tra cứu lịch sử điều trị', href: '/patients', icon: Search, color: 'bg-gray-100 text-gray-600' },
+  ],
+  PHARMACIST: [
+    { label: 'Phát thuốc', description: 'Xử lý đơn thuốc chờ', href: '/pharmacy', icon: Pill, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Nhập kho', description: 'Nhập lô thuốc mới', href: '/pharmacy', icon: PackagePlus, color: 'bg-sky-100 text-sky-600' },
+    { label: 'Kiểm kho', description: 'Xem tồn kho & sắp hết hạn', href: '/pharmacy', icon: FlaskConical, color: 'bg-amber-100 text-amber-600' },
+    { label: 'Đơn thuốc', description: 'Xem tất cả đơn thuốc', href: '/pharmacy', icon: ReceiptText, color: 'bg-violet-100 text-violet-600' },
+  ],
+  ACCOUNTANT: [
+    { label: 'Tạo hóa đơn', description: 'Lập hóa đơn thanh toán', href: '/billing', icon: ReceiptText, color: 'bg-sky-100 text-sky-600' },
+    { label: 'Công nợ', description: 'Hóa đơn chưa thanh toán', href: '/billing', icon: DollarSign, color: 'bg-red-100 text-red-600' },
+    { label: 'Báo cáo', description: 'Thống kê doanh thu', href: '/reports', icon: BarChart3, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Bệnh nhân', description: 'Tra cứu hồ sơ', href: '/patients', icon: Users, color: 'bg-gray-100 text-gray-600' },
+  ],
+  ADMIN: [
+    { label: 'Đặt lịch hẹn', description: 'Tạo lịch mới', href: '/appointments', icon: CalendarDays, color: 'bg-sky-100 text-sky-600' },
+    { label: 'Thêm bệnh nhân', description: 'Đăng ký bệnh nhân mới', href: '/patients', icon: UserPlus, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Hàng đợi', description: 'Quản lý phòng chờ', href: '/queue', icon: Users2, color: 'bg-amber-100 text-amber-600' },
+    { label: 'Hóa đơn', description: 'Quản lý thanh toán', href: '/billing', icon: ReceiptText, color: 'bg-red-100 text-red-600' },
+    { label: 'Nhà thuốc', description: 'Kho & phát thuốc', href: '/pharmacy', icon: Pill, color: 'bg-violet-100 text-violet-600' },
+    { label: 'Báo cáo', description: 'Thống kê tổng hợp', href: '/reports', icon: BarChart3, color: 'bg-gray-100 text-gray-600' },
+  ],
+};
+
+function QuickActions({ role }: { role?: string }) {
+  const shortcuts = SHORTCUTS_BY_ROLE[role ?? ''] ?? SHORTCUTS_BY_ROLE.ADMIN;
+  return (
+    <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
+      <h3 className="font-semibold text-gray-900 mb-4">Thao tác nhanh</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {shortcuts.map((s) => (
+          <Link
+            key={s.href + s.label}
+            href={s.href}
+            className="group flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-sky-200 hover:shadow-sm transition-all text-center"
+          >
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${s.color} group-hover:scale-110 transition-transform`}>
+              <s.icon className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-800 leading-tight">{s.label}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5 leading-tight hidden sm:block">{s.description}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main dashboard ──────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -266,6 +348,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Quick Actions ──────────────────────────────────────────────── */}
+      <QuickActions role={role} />
 
       {/* ── Stats Grid ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
