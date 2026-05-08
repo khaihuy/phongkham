@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Plus, Loader, AlertCircle, RefreshCw, Users, Clock, Activity, CheckCircle, Heart, Thermometer, Weight, Monitor } from 'lucide-react';
+import { Plus, Loader, AlertCircle, RefreshCw, Users, Clock, Activity, CheckCircle, Heart, Thermometer, Weight, Monitor, UserPlus, Search, DoorOpen, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import Modal from '@/components/ui/Modal';
@@ -59,6 +59,8 @@ function formatVitalSigns(vs: any) {
   return parts.join(' • ') || '—';
 }
 
+const EMPTY_WALKIN = { patientSearch: '', patientId: '', doctorId: '', roomId: '', chiefComplaint: '' };
+
 export default function QueuePage() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -66,6 +68,62 @@ export default function QueuePage() {
 
   const [vitalModal, setVitalModal] = useState<any>(null);
   const [vitals, setVitals] = useState(EMPTY_VITALS);
+  const [showWalkIn, setShowWalkIn] = useState(false);
+  const [walkIn, setWalkIn] = useState(EMPTY_WALKIN);
+
+  // Load patients + doctors for walk-in modal
+  const { data: patientsData } = useQuery({
+    queryKey: ['patients-walkin', walkIn.patientSearch],
+    queryFn: async () => {
+      const q = walkIn.patientSearch ? `&search=${encodeURIComponent(walkIn.patientSearch)}` : '';
+      const r = await fetch(`/api/patients?pageSize=30${q}`);
+      return (await r.json()).data ?? [];
+    },
+    enabled: showWalkIn,
+  });
+  const { data: doctorsData } = useQuery({
+    queryKey: ['doctors-walkin'],
+    queryFn: async () => {
+      const r = await fetch('/api/doctors?pageSize=50');
+      return (await r.json()).data ?? [];
+    },
+    enabled: showWalkIn,
+  });
+  const { data: roomsData } = useQuery({
+    queryKey: ['rooms-walkin'],
+    queryFn: async () => {
+      const r = await fetch('/api/rooms?pageSize=50');
+      if (!r.ok) return [];
+      return (await r.json()).data ?? [];
+    },
+    enabled: showWalkIn,
+  });
+
+  const walkInMutation = useMutation({
+    mutationFn: async (payload: typeof EMPTY_WALKIN) => {
+      const r = await fetch('/api/queue/walkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: payload.patientId,
+          doctorId: payload.doctorId,
+          roomId: payload.roomId || undefined,
+          chiefComplaint: payload.chiefComplaint || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? 'Lỗi tiếp nhận');
+      return j.data ?? j;
+    },
+    onSuccess: (apt) => {
+      qc.invalidateQueries({ queryKey: ['queue', today] });
+      setShowWalkIn(false);
+      setWalkIn(EMPTY_WALKIN);
+      toast.success(`Đã tiếp nhận — Số thứ tự: ${String(apt.queueNumber).padStart(3, '0')}`);
+      router.push(`/queue/ticket?id=${apt.id}`);
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Lỗi tiếp nhận'),
+  });
 
   const { data, isLoading, error, dataUpdatedAt } = useQuery({
     queryKey: ['queue', today],
@@ -151,9 +209,13 @@ export default function QueuePage() {
 
   const appointments: any[] = data?.data ?? [];
 
-  const sorted = [...appointments].sort((a, b) =>
-    (a.scheduledTime ?? '').localeCompare(b.scheduledTime ?? '')
-  );
+  const sorted = [...appointments].sort((a, b) => {
+    // Sort by queueNumber first (walk-ins), then by scheduledTime
+    if (a.queueNumber != null && b.queueNumber != null) return a.queueNumber - b.queueNumber;
+    if (a.queueNumber != null) return -1;
+    if (b.queueNumber != null) return 1;
+    return (a.scheduledTime ?? '').localeCompare(b.scheduledTime ?? '');
+  });
 
   const stats = {
     total: sorted.length,
@@ -188,13 +250,22 @@ export default function QueuePage() {
             </p>
           )}
         </div>
-        <Link
-          href="/appointments"
-          className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Thêm lịch hẹn
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/appointments"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Có lịch hẹn
+          </Link>
+          <button
+            onClick={() => setShowWalkIn(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <UserPlus className="w-5 h-5" />
+            Tiếp nhận vãng lai
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -253,10 +324,10 @@ export default function QueuePage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-600 w-12">#</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-600 w-16">Lượt</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-600">Bệnh nhân</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Bác sĩ</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-600">Giờ hẹn</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Bác sĩ / Phòng</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-600">Giờ đến</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-600">Sinh hiệu</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-600">Trạng thái</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-600">Hành động</th>
@@ -283,11 +354,15 @@ export default function QueuePage() {
                     >
                       <td className="px-4 py-3 text-center">
                         <span
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
-                            isCompleted ? 'bg-gray-200 text-gray-500' : 'bg-sky-100 text-sky-700'
+                          className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-black ${
+                            isCompleted
+                              ? 'bg-gray-200 text-gray-400'
+                              : apt.status === 'IN_PROGRESS'
+                              ? 'bg-sky-600 text-white shadow-sm'
+                              : 'bg-sky-100 text-sky-700'
                           }`}
                         >
-                          {index + 1}
+                          {apt.queueNumber != null ? String(apt.queueNumber).padStart(2, '0') : index + 1}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -298,8 +373,14 @@ export default function QueuePage() {
                           <p className="text-xs text-gray-400">{apt.patient.patientCode}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {apt.doctor?.user?.fullName ?? 'N/A'}
+                      <td className="px-4 py-3">
+                        <p className="text-gray-700 text-sm">{apt.doctor?.user?.fullName ?? 'N/A'}</p>
+                        {apt.room?.name && (
+                          <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 bg-sky-50 text-sky-700 rounded text-xs font-medium">
+                            <DoorOpen className="w-3 h-3" />
+                            {apt.room.name}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center font-mono text-gray-700">
                         {apt.scheduledTime ?? '—'}
@@ -389,6 +470,18 @@ export default function QueuePage() {
                             </>
                           )}
 
+                          {/* Print ticket */}
+                          {apt.queueNumber != null && !isCompleted && (
+                            <Link
+                              href={`/queue/ticket?id=${apt.id}`}
+                              target="_blank"
+                              title="In phiếu lượt"
+                              className="p-1.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </Link>
+                          )}
+
                           {/* COMPLETED / CANCELLED / NO_SHOW — billing link */}
                           {isCompleted && apt.invoice?.id && (
                             <Link
@@ -408,6 +501,105 @@ export default function QueuePage() {
           </div>
         )}
       </div>
+
+      {/* Walk-in Modal */}
+      <Modal
+        open={showWalkIn}
+        onClose={() => { setShowWalkIn(false); setWalkIn(EMPTY_WALKIN); }}
+        title="Tiếp nhận bệnh nhân vãng lai"
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={() => { setShowWalkIn(false); setWalkIn(EMPTY_WALKIN); }}
+              className="px-4 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium"
+            >
+              Hủy
+            </button>
+            <button
+              disabled={!walkIn.patientId || !walkIn.doctorId || walkInMutation.isPending}
+              onClick={() => walkInMutation.mutate(walkIn)}
+              className="px-5 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {walkInMutation.isPending ? 'Đang xử lý...' : 'Tiếp nhận & In phiếu'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {/* Patient search */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Bệnh nhân *</label>
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Tìm theo tên, mã BN, số điện thoại..."
+                value={walkIn.patientSearch}
+                onChange={(e) => setWalkIn(w => ({ ...w, patientSearch: e.target.value, patientId: '' }))}
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+              />
+            </div>
+            <select
+              value={walkIn.patientId}
+              onChange={(e) => setWalkIn(w => ({ ...w, patientId: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+              size={Math.min(5, (patientsData ?? []).length + 1)}
+            >
+              <option value="">— Chọn bệnh nhân —</option>
+              {(patientsData ?? []).map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {p.fullName} {p.patientCode ? `(${p.patientCode})` : ''} {p.phone ? `• ${p.phone}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Doctor */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Bác sĩ *</label>
+            <select
+              value={walkIn.doctorId}
+              onChange={(e) => setWalkIn(w => ({ ...w, doctorId: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="">— Chọn bác sĩ —</option>
+              {(doctorsData ?? []).map((d: any) => (
+                <option key={d.id} value={d.id}>
+                  {d.user?.fullName ?? d.user?.username} {d.specialty?.name ? `— ${d.specialty.name}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Room */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Phòng khám</label>
+            <select
+              value={walkIn.roomId}
+              onChange={(e) => setWalkIn(w => ({ ...w, roomId: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="">— Chọn phòng (tuỳ chọn) —</option>
+              {(roomsData ?? []).map((r: any) => (
+                <option key={r.id} value={r.id}>{r.name} {r.code ? `(${r.code})` : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Chief complaint */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Lý do khám</label>
+            <input
+              type="text"
+              placeholder="Đau đầu, sốt, khám tổng quát..."
+              value={walkIn.chiefComplaint}
+              onChange={(e) => setWalkIn(w => ({ ...w, chiefComplaint: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Vital Signs Modal */}
       <Modal

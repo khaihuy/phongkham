@@ -376,6 +376,7 @@ model Appointment {
   status          AppointmentStatus @default(PENDING)
   scheduledDate   DateTime
   scheduledTime   String
+  queueNumber     Int?
   duration        Int               @default(30)
   chiefComplaint  String?
   notes           String?
