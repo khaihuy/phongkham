@@ -64,7 +64,10 @@ export function useCreatePatient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to create patient');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || err.message || 'Tạo bệnh nhân thất bại');
+      }
       const result = await response.json();
       return result.data as Patient;
     },
@@ -84,7 +87,10 @@ export function useUpdatePatient(id: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to update patient');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || err.message || 'Cập nhật bệnh nhân thất bại');
+      }
       const result = await response.json();
       return result.data as Patient;
     },
@@ -103,7 +109,10 @@ export function useDeletePatient() {
       const response = await fetch(`/api/patients/${id}`, {
         method: 'DELETE',
       });
-      if (!response.ok) throw new Error('Failed to delete patient');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || err.message || 'Xóa bệnh nhân thất bại');
+      }
       return response.json();
     },
     onSuccess: () => {

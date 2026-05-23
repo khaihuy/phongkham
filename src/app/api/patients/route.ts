@@ -11,6 +11,7 @@ import {
   error,
 } from "@/lib/api-utils"
 import { createPatientSchema, CreatePatientInput } from "@/lib/validations"
+import { patientService } from "@/lib/services/patient.service"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -60,29 +61,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const input = await validateBody<CreatePatientInput>(request, createPatientSchema)
 
-  // Generate patient code (e.g., PKC001)
-  const lastPatient = await prisma.patient.findFirst({
-    orderBy: { patientCode: "desc" },
-    select: { patientCode: true },
+  const patient = await patientService.create(input as any)
+
+  // Re-fetch với include để giữ shape response giống cũ (FE cần allergies + vitals)
+  const full = await prisma.patient.findUnique({
+    where: { id: patient.id },
+    include: { allergies: true, vitals: true },
   })
 
-  let nextCode = "PKC001"
-  if (lastPatient) {
-    const lastNum = parseInt(lastPatient.patientCode.replace("PKC", ""))
-    nextCode = `PKC${String(lastNum + 1).padStart(3, "0")}`
-  }
-
-  const patient = await prisma.patient.create({
-    data: {
-      ...input,
-      patientCode: nextCode,
-      dateOfBirth: new Date(input.dateOfBirth),
-    },
-    include: {
-      allergies: true,
-      vitals: true,
-    },
-  })
-
-  return sendSuccess(patient, 201)
+  return sendSuccess(full, 201)
 })

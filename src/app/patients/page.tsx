@@ -67,8 +67,8 @@ export default function PatientsPage() {
       }
       setModalMode(null);
       setForm(emptyForm);
-    } catch (err) {
-      toast.error('Có lỗi xảy ra');
+    } catch (err: any) {
+      toast.error(err?.message || 'Có lỗi xảy ra');
     }
   }
 
@@ -77,8 +77,8 @@ export default function PatientsPage() {
       await deletePatientMutation.mutateAsync(id);
       toast.success('Xóa bệnh nhân thành công');
       setDeleteConfirm(null);
-    } catch (err) {
-      toast.error('Có lỗi xảy ra');
+    } catch (err: any) {
+      toast.error(err?.message || 'Có lỗi xảy ra');
     }
   }
 
