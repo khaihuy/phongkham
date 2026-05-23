@@ -450,6 +450,15 @@ export default function MedicalRecordDetailPage() {
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* In phiếu dịch vụ — không giá */}
+            <Link
+              href={`/medical-records/${id}/services/print`}
+              target="_blank"
+              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
+            >
+              <Printer className="w-4 h-4" /> In phiếu dịch vụ
+            </Link>
+            {/* In đơn thuốc — không giá */}
             {record.prescriptions?.map((presc: any, i: number) => (
               <Link
                 key={presc.id}
@@ -458,14 +467,15 @@ export default function MedicalRecordDetailPage() {
                 className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium"
               >
                 <Printer className="w-4 h-4" />
-                In đơn thuốc {record.prescriptions.length > 1 ? `#${i + 1}` : ''} ({presc.prescriptionCode})
+                In đơn thuốc {record.prescriptions.length > 1 ? `#${i + 1}` : ''}
               </Link>
             ))}
+            {/* Đến hóa đơn để thanh toán + in hóa đơn (có giá) */}
             <Link
               href={`/billing/${invoicePreview.invoice.id}`}
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium"
             >
-              <CreditCard className="w-4 h-4" /> Đến thanh toán
+              <CreditCard className="w-4 h-4" /> Hóa đơn & thanh toán
             </Link>
           </div>
           {(!record.prescriptions || record.prescriptions.length === 0) && (
@@ -712,7 +722,7 @@ export default function MedicalRecordDetailPage() {
       </div>
 
       {/* Dịch vụ chỉ định */}
-      <MedicalRecordServicesSection recordId={id} />
+      <MedicalRecordServicesSection recordId={id} hasOrders={(record.labOrders?.length ?? 0) + (record.imageOrders?.length ?? 0) > 0} />
 
       {/* Prescriptions */}
       {record.prescriptions && record.prescriptions.length > 0 && (
@@ -821,7 +831,7 @@ const NEXT_STATUS: Record<string, string> = {
   SKIPPED: 'PENDING',
 };
 
-function MedicalRecordServicesSection({ recordId }: { recordId: string }) {
+function MedicalRecordServicesSection({ recordId, hasOrders = false }: { recordId: string; hasOrders?: boolean }) {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState('');
@@ -913,6 +923,16 @@ function MedicalRecordServicesSection({ recordId }: { recordId: string }) {
             <span className="text-sm text-gray-600">
               Tổng: <span className="font-bold text-indigo-700">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(total)}</span>
             </span>
+          )}
+          {(services.length > 0 || hasOrders) && (
+            <Link
+              href={`/medical-records/${recordId}/services/print`}
+              target="_blank"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 border border-sky-200 text-xs rounded-lg font-medium"
+              title="In phiếu chỉ định dịch vụ (không kèm giá) cho bệnh nhân"
+            >
+              <Printer className="w-3.5 h-3.5" /> In phiếu DV
+            </Link>
           )}
           <button
             onClick={() => setShowAdd(true)}

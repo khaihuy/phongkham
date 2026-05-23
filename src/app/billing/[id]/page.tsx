@@ -198,37 +198,70 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {/* Đơn thuốc đã kê (in riêng cho BN, không kèm giá) */}
-      {invoice.medicalRecord?.prescriptions?.length > 0 && (
+      {/* 3 loại in riêng biệt: Hóa đơn (có giá) / Đơn thuốc / Phiếu dịch vụ (không giá) */}
+      {invoice.medicalRecord && (
         <div className="print-hide bg-white rounded-xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
-              <Pill className="w-4 h-4 text-sky-600" />
-              Đơn thuốc đã kê ({invoice.medicalRecord.prescriptions.length})
+              <FileText className="w-4 h-4 text-gray-600" />
+              In tài liệu cho bệnh nhân
             </h3>
-            <span className="text-xs text-gray-500">In ra cho bệnh nhân — không hiển thị giá</span>
           </div>
-          <div className="space-y-2">
-            {invoice.medicalRecord.prescriptions.map((presc: any, i: number) => (
-              <div key={presc.id} className="flex items-center justify-between p-3 bg-sky-50 border border-sky-100 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-800 text-sm">
-                    Đơn #{i + 1} — <span className="font-mono">{presc.prescriptionCode}</span>
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {presc.items?.length ?? 0} loại thuốc · Tổng SL:{' '}
-                    {(presc.items ?? []).reduce((s: number, it: any) => s + (it.quantity ?? 0), 0)}
-                  </p>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Hóa đơn — có giá, dùng cho thanh toán/kế toán */}
+            <button
+              onClick={() => window.print()}
+              className="flex items-start gap-3 p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-left transition-colors"
+            >
+              <Printer className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-emerald-800 text-sm">Hóa đơn</p>
+                <p className="text-xs text-emerald-600 mt-0.5">Có giá · cho thanh toán</p>
+              </div>
+            </button>
+
+            {/* Phiếu dịch vụ — không giá, để BN cầm đi thực hiện */}
+            <Link
+              href={`/medical-records/${invoice.medicalRecord.id}/services/print`}
+              target="_blank"
+              className="flex items-start gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-left transition-colors"
+            >
+              <Printer className="w-5 h-5 text-indigo-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-indigo-800 text-sm">Phiếu dịch vụ</p>
+                <p className="text-xs text-indigo-600 mt-0.5">Không giá · để BN đi làm DV</p>
+              </div>
+            </Link>
+
+            {/* Đơn thuốc — không giá, để BN cầm đi mua/lấy thuốc */}
+            {invoice.medicalRecord?.prescriptions?.length > 0 ? (
+              invoice.medicalRecord.prescriptions.map((presc: any, i: number) => (
                 <Link
+                  key={presc.id}
                   href={`/prescriptions/${presc.id}/print`}
                   target="_blank"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium"
+                  className="flex items-start gap-3 p-3 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg text-left transition-colors"
                 >
-                  <Printer className="w-4 h-4" /> In đơn (không giá)
+                  <Pill className="w-5 h-5 text-sky-700 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sky-800 text-sm">
+                      Đơn thuốc{invoice.medicalRecord.prescriptions.length > 1 ? ` #${i + 1}` : ''}
+                    </p>
+                    <p className="text-xs text-sky-600 mt-0.5">
+                      Không giá · {presc.items?.length ?? 0} loại · {presc.prescriptionCode}
+                    </p>
+                  </div>
                 </Link>
+              ))
+            ) : (
+              <div className="flex items-start gap-3 p-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-left opacity-60">
+                <Pill className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-500 text-sm">Đơn thuốc</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Chưa có đơn thuốc</p>
+                </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}
