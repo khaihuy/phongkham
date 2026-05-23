@@ -59,9 +59,41 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const allCodes = await prisma.medicalRecord.findMany({ select: { recordCode: true } })
   const recordCode = nextCode(allCodes.map((c) => c.recordCode), "HS")
 
-  // appointmentId là tùy chọn — không cần lịch hẹn vẫn tạo được hồ sơ
-  // (vd. khám không hẹn, lễ tân quên đăng ký lịch trước)
-  const { appointmentId, ...rest } = input
+  // appointmentId + prescriptions là tùy chọn
+  const { appointmentId, prescriptions, ...rest } = input
+
+  // Sinh prescriptionCode cho từng đơn (nếu có)
+  let prescriptionCreates: any[] = []
+  if (prescriptions && prescriptions.length > 0) {
+    const allPrescCodes = await prisma.prescription.findMany({ select: { prescriptionCode: true } })
+    const baseMax = (() => {
+      const codes = allPrescCodes.map((c) => c.prescriptionCode)
+      // dùng helper nextCode để lấy số kế tiếp nhưng cần sinh cho nhiều đơn
+      const re = /\d+/
+      let max = 0
+      for (const c of codes) {
+        const m = c.match(re)
+        if (m) { const n = parseInt(m[0], 10); if (!Number.isNaN(n) && n > max) max = n }
+      }
+      return max
+    })()
+
+    prescriptionCreates = prescriptions.map((p, idx) => ({
+      prescriptionCode: `DT${String(baseMax + idx + 1).padStart(4, "0")}`,
+      items: {
+        create: p.items.map((it) => ({
+          drugId: it.drugId,
+          quantity: it.quantity,
+          dosage: it.dosage,
+          frequency: it.frequency,
+          duration: it.duration,
+          route: it.route,
+          unitPrice: it.unitPrice,
+          instructions: it.instructions,
+        })),
+      },
+    }))
+  }
 
   const record = await prisma.medicalRecord.create({
     data: {
@@ -70,6 +102,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
       recordCode,
       visitDate: new Date(input.visitDate),
       ...(input.followUpDate && { followUpDate: new Date(input.followUpDate) }),
+      ...(prescriptionCreates.length > 0 && {
+        prescriptions: { create: prescriptionCreates },
+      }),
     },
     include: {
       appointment: true,

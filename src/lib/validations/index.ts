@@ -96,6 +96,17 @@ export const createDoctorSchema = z.object({
 export const updateDoctorSchema = createDoctorSchema.partial()
 
 // Medical Records
+const prescriptionItemSchema = z.object({
+  drugId: z.string().min(1),
+  quantity: z.coerce.number().int().positive(),
+  dosage: z.string().optional().default(""),
+  frequency: z.string().optional().default(""),
+  duration: z.string().optional().default(""),
+  route: z.string().optional(),
+  unitPrice: z.coerce.number().nonnegative().default(0),
+  instructions: z.string().optional(),
+})
+
 export const createMedicalRecordSchema = z.object({
   appointmentId: z.string().optional().nullable(),
   patientId: z.string().min(1, "Bệnh nhân không được để trống"),
@@ -110,6 +121,11 @@ export const createMedicalRecordSchema = z.object({
   followUpDate: z.string().optional(),
   followUpNotes: z.string().optional(),
   isConfidential: z.boolean().default(false),
+  // Đơn thuốc kèm khi tạo hồ sơ — tùy chọn. Nếu có sẽ tạo Prescription
+  // + PrescriptionItem ngay trong cùng request.
+  prescriptions: z
+    .array(z.object({ items: z.array(prescriptionItemSchema).min(1) }))
+    .optional(),
 })
 
 export const updateMedicalRecordSchema = createMedicalRecordSchema.partial()
