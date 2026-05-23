@@ -14,7 +14,8 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, parseISO, 
 import { vi } from 'date-fns/locale';
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('vi-VN');
+  // Định dạng ngày/tháng/năm — dd/MM/yyyy (vd. 23/05/2026)
+  return format(new Date(dateStr), 'dd/MM/yyyy');
 }
 
 function formatDateTime(dateStr: string, timeStr: string): string {
@@ -238,7 +239,7 @@ function WeekView({ weekStart, appointments }: WeekViewProps) {
                   <div className={`text-lg font-bold ${isToday ? 'text-sky-600' : 'text-gray-900'}`}>
                     {format(d, 'd')}
                   </div>
-                  <div className="text-gray-400 font-normal">{format(d, 'MM/yyyy')}</div>
+                  <div className="text-gray-400 font-normal">{format(d, 'dd/MM/yyyy')}</div>
                 </th>
               );
             })}
@@ -580,7 +581,7 @@ export default function AppointmentsPage() {
               </button>
             </div>
             <div className="text-sm font-medium text-gray-700">
-              {format(currentWeekStart, 'd MMM', { locale: vi })} – {format(weekEnd, 'd MMM yyyy', { locale: vi })}
+              {format(currentWeekStart, 'dd/MM/yyyy')} – {format(weekEnd, 'dd/MM/yyyy')}
             </div>
             {calendarLoading && <Loader className="w-4 h-4 animate-spin text-sky-600" />}
           </div>
@@ -686,7 +687,7 @@ export default function AppointmentsPage() {
               <p className="text-green-800 font-semibold text-lg">{createdApt.patient?.fullName ?? '—'}</p>
               <p className="text-3xl font-black text-green-700 font-mono mt-1">{createdApt.scheduledTime}</p>
               <p className="text-sm text-green-600">
-                {createdApt.scheduledDate ? new Date(createdApt.scheduledDate).toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
+                {createdApt.scheduledDate ? format(new Date(createdApt.scheduledDate), 'EEEE, dd/MM/yyyy', { locale: vi }) : ''}
               </p>
               <p className="text-xs text-green-500 font-mono mt-1">{createdApt.appointmentCode}</p>
             </div>
