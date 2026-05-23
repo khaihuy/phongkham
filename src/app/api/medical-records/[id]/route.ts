@@ -8,6 +8,7 @@ import {
   error,
 } from "@/lib/api-utils"
 import { updateMedicalRecordSchema, prescriptionSchema } from "@/lib/validations"
+import { nextCode } from "@/lib/utils"
 
 export const GET = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
   await getAuthUser()
@@ -73,22 +74,14 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
   if (action === "add-prescription") {
     const input = await validateBody(request, prescriptionSchema)
 
-    // Generate prescription code
-    const lastPrescription = await prisma.prescription.findFirst({
-      orderBy: { prescriptionCode: "desc" },
-      select: { prescriptionCode: true },
-    })
-
-    let nextCode = "PRE001"
-    if (lastPrescription) {
-      const lastNum = parseInt(lastPrescription.prescriptionCode.replace("PRE", ""))
-      nextCode = `PRE${String(lastNum + 1).padStart(3, "0")}`
-    }
+    // Sinh mã đơn thuốc (DT0001, ...)
+    const allCodes = await prisma.prescription.findMany({ select: { prescriptionCode: true } })
+    const prescriptionCode = nextCode(allCodes.map((c) => c.prescriptionCode), "DT")
 
     const prescription = await prisma.prescription.create({
       data: {
         medicalRecordId: params.id,
-        prescriptionCode: nextCode,
+        prescriptionCode,
         items: {
           create: input.items.map((item: any) => ({
             drugId: item.drugId,

@@ -11,6 +11,7 @@ import {
 } from "@/lib/api-utils"
 import { createAppointmentSchema, type CreateAppointmentInput } from "@/lib/validations"
 import { addDays } from "date-fns"
+import { nextCode } from "@/lib/utils"
 
 const VALID_APPOINTMENT_STATUSES = ["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"] as const
 
@@ -80,22 +81,15 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const input = await validateBody<CreateAppointmentInput>(request, createAppointmentSchema)
 
-  // Generate appointment code
-  const lastAppointment = await prisma.appointment.findFirst({
-    orderBy: { appointmentCode: "desc" },
-    select: { appointmentCode: true },
-  })
-
-  let nextCode = "APT001"
-  if (lastAppointment) {
-    const lastNum = parseInt(lastAppointment.appointmentCode.replace("APT", ""))
-    nextCode = `APT${String(lastNum + 1).padStart(3, "0")}`
-  }
+  // Sinh mã lịch hẹn (LH0001, LH0031, ...) — dùng max(num)+1 thay vì count+1
+  // để tránh trùng khi có record bị xóa
+  const allCodes = await prisma.appointment.findMany({ select: { appointmentCode: true } })
+  const appointmentCode = nextCode(allCodes.map((c) => c.appointmentCode), "LH")
 
   const appointment = await prisma.appointment.create({
     data: {
       ...input,
-      appointmentCode: nextCode,
+      appointmentCode,
       scheduledDate: new Date(input.scheduledDate),
     },
     include: {

@@ -10,6 +10,7 @@ import {
   error,
 } from "@/lib/api-utils"
 import { createMedicalRecordSchema, CreateMedicalRecordInput } from "@/lib/validations"
+import { nextCode } from "@/lib/utils"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -54,22 +55,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const input = await validateBody<CreateMedicalRecordInput>(request, createMedicalRecordSchema)
 
-  // Generate record code
-  const lastRecord = await prisma.medicalRecord.findFirst({
-    orderBy: { recordCode: "desc" },
-    select: { recordCode: true },
-  })
-
-  let nextCode = "MED001"
-  if (lastRecord) {
-    const lastNum = parseInt(lastRecord.recordCode.replace("MED", ""))
-    nextCode = `MED${String(lastNum + 1).padStart(3, "0")}`
-  }
+  // Sinh mã hồ sơ (HS0001, HS0016, ...)
+  const allCodes = await prisma.medicalRecord.findMany({ select: { recordCode: true } })
+  const recordCode = nextCode(allCodes.map((c) => c.recordCode), "HS")
 
   const record = await prisma.medicalRecord.create({
     data: {
       ...input,
-      recordCode: nextCode,
+      recordCode,
       visitDate: new Date(input.visitDate),
       ...(input.followUpDate && { followUpDate: new Date(input.followUpDate) }),
     },

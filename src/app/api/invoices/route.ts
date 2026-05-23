@@ -10,6 +10,7 @@ import {
   error,
 } from "@/lib/api-utils"
 import { createInvoiceSchema, CreateInvoiceInput } from "@/lib/validations"
+import { nextCode } from "@/lib/utils"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -60,21 +61,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const input = await validateBody<CreateInvoiceInput>(request, createInvoiceSchema)
 
-  // Generate invoice code
-  const lastInvoice = await prisma.invoice.findFirst({
-    orderBy: { invoiceCode: "desc" },
-    select: { invoiceCode: true },
-  })
-
-  let nextCode = "INV001"
-  if (lastInvoice) {
-    const lastNum = parseInt(lastInvoice.invoiceCode.replace("INV", ""))
-    nextCode = `INV${String(lastNum + 1).padStart(3, "0")}`
-  }
+  // Sinh mã hóa đơn (HD0001, ...)
+  const allCodes = await prisma.invoice.findMany({ select: { invoiceCode: true } })
+  const invoiceCode = nextCode(allCodes.map((c) => c.invoiceCode), "HD")
 
   const invoice = await prisma.invoice.create({
     data: {
-      invoiceCode: nextCode,
+      invoiceCode,
       patientId: input.patientId,
       appointmentId: input.appointmentId,
       createdById: user.id,
