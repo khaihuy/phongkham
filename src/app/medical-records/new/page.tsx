@@ -52,6 +52,13 @@ export default function NewMedicalRecordPage() {
     drugId: '', drugName: '', quantity: 1, dosage: '1 viên', frequency: '2 lần/ngày', duration: '7 ngày', route: 'Uống', unitPrice: '5000',
   });
 
+  // Đơn TPBS — tách biệt với đơn thuốc
+  const [suppItems, setSuppItems] = useState<PrescriptionItem[]>([]);
+  const [showSuppForm, setShowSuppForm] = useState(false);
+  const [newSupp, setNewSupp] = useState<PrescriptionItem>({
+    drugId: '', drugName: '', quantity: 1, dosage: '1 viên', frequency: '1 lần/ngày', duration: '30 ngày', route: 'Uống', unitPrice: '10000',
+  });
+
   const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
   const [pendingServiceId, setPendingServiceId] = useState('');
   const [pendingServiceQty, setPendingServiceQty] = useState(1);
@@ -82,7 +89,11 @@ export default function NewMedicalRecordPage() {
   });
   const { data: drugs = [] } = useQuery({
     queryKey: ['drugs-all'],
-    queryFn: async () => { const r = await fetch('/api/drugs?pageSize=200'); const j = await r.json(); return j.data ?? []; },
+    queryFn: async () => { const r = await fetch('/api/drugs?pageSize=200&productType=DRUG'); const j = await r.json(); return j.data ?? []; },
+  });
+  const { data: supplements = [] } = useQuery({
+    queryKey: ['supplements-all'],
+    queryFn: async () => { const r = await fetch('/api/drugs?pageSize=200&productType=SUPPLEMENT'); const j = await r.json(); return j.data ?? []; },
   });
   const { data: services = [] } = useQuery({
     queryKey: ['services-all'],
@@ -163,18 +174,39 @@ export default function NewMedicalRecordPage() {
     e.preventDefault();
     if (!form.patientId) { toast.error('Vui lòng chọn bệnh nhân'); return; }
     if (!form.doctorId) { toast.error('Vui lòng chọn bác sĩ'); return; }
-    createRecord.mutate({
-      ...form,
-      // Bỏ appointmentId rỗng để backend hiểu là không có lịch hẹn
-      appointmentId: form.appointmentId || undefined,
-      visitDate: form.visitDate,
-      prescriptions: prescItems.length > 0 ? [{
+    const prescriptions: any[] = [];
+    if (prescItems.length > 0) {
+      prescriptions.push({
+        type: 'PRESCRIPTION',
         items: prescItems.map(it => ({
           drugId: it.drugId, quantity: it.quantity, dosage: it.dosage,
           frequency: it.frequency, duration: it.duration, route: it.route, unitPrice: it.unitPrice,
         })),
-      }] : undefined,
+      });
+    }
+    if (suppItems.length > 0) {
+      prescriptions.push({
+        type: 'SUPPLEMENT_ORDER',
+        items: suppItems.map(it => ({
+          drugId: it.drugId, quantity: it.quantity, dosage: it.dosage,
+          frequency: it.frequency, duration: it.duration, route: it.route, unitPrice: it.unitPrice,
+        })),
+      });
+    }
+
+    createRecord.mutate({
+      ...form,
+      appointmentId: form.appointmentId || undefined,
+      visitDate: form.visitDate,
+      prescriptions: prescriptions.length > 0 ? prescriptions : undefined,
     });
+  }
+
+  function addSuppItem() {
+    if (!newSupp.drugId) { toast.error('Chọn TPBS'); return; }
+    setSuppItems(items => [...items, { ...newSupp }]);
+    setNewSupp({ drugId: '', drugName: '', quantity: 1, dosage: '1 viên', frequency: '1 lần/ngày', duration: '30 ngày', route: 'Uống', unitPrice: '10000' });
+    setShowSuppForm(false);
   }
 
   return (
@@ -272,7 +304,9 @@ export default function NewMedicalRecordPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tái khám</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tái khám <span className="text-gray-400 font-normal">(không bắt buộc)</span>
+              </label>
               <input type="date" value={form.followUpDate} onChange={e => setForm(f => ({ ...f, followUpDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm" />
             </div>
@@ -437,6 +471,92 @@ export default function NewMedicalRecordPage() {
               <div className="flex gap-2">
                 <button type="button" onClick={addPrescItem} className="flex-1 py-1.5 bg-sky-600 text-white rounded-lg text-sm">Thêm vào đơn</button>
                 <button type="button" onClick={() => setShowPrescForm(false)} className="flex-1 py-1.5 border rounded-lg text-sm hover:bg-white">Hủy</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Đơn thực phẩm bổ sung — tách biệt với đơn thuốc */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+              🌿 Đơn thực phẩm bổ sung
+              {suppItems.length > 0 && (
+                <span className="text-xs text-gray-400">
+                  ({suppItems.length} sản phẩm · {' '}
+                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                    .format(suppItems.reduce((s, i) => s + i.quantity * Number(i.unitPrice), 0))})
+                </span>
+              )}
+            </h3>
+            <button type="button" onClick={() => setShowSuppForm(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm">
+              <Plus className="w-4 h-4" /> Thêm TPBS
+            </button>
+          </div>
+
+          {suppItems.length === 0 && !showSuppForm && (
+            <p className="text-gray-400 text-sm text-center py-4">Chưa có TPBS trong đơn</p>
+          )}
+
+          {suppItems.length > 0 && (
+            <div className="space-y-2">
+              {suppItems.map((item, i) => (
+                <div key={i} className="flex items-start justify-between p-3 bg-emerald-50 rounded-lg text-sm">
+                  <div>
+                    <p className="font-medium">{item.drugName}</p>
+                    <p className="text-xs text-gray-500">{item.dosage} · {item.frequency} · {item.duration} · {item.route}</p>
+                    <p className="text-xs text-gray-500">SL: {item.quantity} · {Number(item.unitPrice).toLocaleString('vi-VN')}đ/đv</p>
+                  </div>
+                  <button type="button" onClick={() => setSuppItems(items => items.filter((_, j) => j !== i))}
+                    className="text-red-400 hover:text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showSuppForm && (
+            <div className="border border-emerald-200 rounded-lg p-4 space-y-3 bg-emerald-50">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Thực phẩm bổ sung *</label>
+                  <select value={newSupp.drugId} onChange={e => {
+                    const s = supplements.find((sp: any) => sp.id === e.target.value);
+                    setNewSupp(n => ({ ...n, drugId: e.target.value, drugName: s?.name ?? '' }));
+                  }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="">Chọn TPBS</option>
+                    {supplements.map((s: any) => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.strength ?? s.unit})</option>
+                    ))}
+                  </select>
+                  {supplements.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Chưa có TPBS trong hệ thống. Thêm tại Pharmacy → bật loại "Thực phẩm bổ sung".
+                    </p>
+                  )}
+                </div>
+                {[
+                  { key: 'quantity', label: 'Số lượng', type: 'number' },
+                  { key: 'unitPrice', label: 'Đơn giá (đ)', type: 'number' },
+                  { key: 'dosage', label: 'Liều dùng', type: 'text' },
+                  { key: 'frequency', label: 'Tần suất', type: 'text' },
+                  { key: 'duration', label: 'Thời gian dùng', type: 'text' },
+                  { key: 'route', label: 'Đường dùng', type: 'text' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">{f.label}</label>
+                    <input type={f.type} value={(newSupp as any)[f.key]}
+                      onChange={e => setNewSupp(n => ({ ...n, [f.key]: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={addSuppItem} className="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg text-sm">Thêm vào đơn</button>
+                <button type="button" onClick={() => setShowSuppForm(false)} className="flex-1 py-1.5 border rounded-lg text-sm hover:bg-white">Hủy</button>
               </div>
             </div>
           )}

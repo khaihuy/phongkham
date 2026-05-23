@@ -17,6 +17,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const { searchParams } = request.nextUrl
   const categoryId = searchParams.get("categoryId")
+  const productType = searchParams.get("productType") // DRUG | SUPPLEMENT | empty=cả 2
   const searchTerm = searchParams.get("search") || ""
   const { page, pageSize, skip } = getPaginationParams({
     page: searchParams.get("page"),
@@ -26,6 +27,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const where: any = {
     isActive: true,
     ...(categoryId && { categoryId }),
+    ...(productType === "DRUG" || productType === "SUPPLEMENT" ? { productType } : {}),
   }
 
   if (searchTerm) {

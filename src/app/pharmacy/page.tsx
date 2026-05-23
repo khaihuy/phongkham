@@ -37,6 +37,7 @@ const UNIT_LABELS: Record<string, string> = {
 const emptyForm = {
   name: '', genericName: '', code: '', unit: 'TABLET', strength: '',
   manufacturer: '', requirePrescription: false, minStock: 50, categoryId: '',
+  productType: 'DRUG' as 'DRUG' | 'SUPPLEMENT',
 };
 
 const emptyStockForm = {
@@ -68,6 +69,7 @@ function useImportStock() {
 
 export default function PharmacyPage() {
   const [tab, setTab] = useState<'inventory' | 'dispense'>('dispense');
+  const [productType, setProductType] = useState<'ALL' | 'DRUG' | 'SUPPLEMENT'>('ALL');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
@@ -77,7 +79,7 @@ export default function PharmacyPage() {
   const [dispensingId, setDispensingId] = useState<string | null>(null);
 
   const qc = useQueryClient();
-  const { data: drugsData, isLoading, error } = useDrugs(page, 10, search || undefined);
+  const { data: drugsData, isLoading, error } = useDrugs(page, 10, search || undefined, productType === 'ALL' ? undefined : productType);
   const { data: categories = [] } = useDrugCategories();
   const createDrug = useCreateDrug();
   const importStock = useImportStock();
@@ -345,11 +347,27 @@ export default function PharmacyPage() {
       {/* Inventory Tab */}
       {tab === 'inventory' && (<>
 
-      <div className="relative">
-        <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
-        <input type="text" placeholder="Tìm theo tên, mã thuốc..." value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+          <input type="text" placeholder="Tìm theo tên, mã..." value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+        </div>
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          {[
+            { key: 'ALL',        label: 'Tất cả' },
+            { key: 'DRUG',       label: 'Thuốc' },
+            { key: 'SUPPLEMENT', label: 'TPBS' },
+          ].map(t => (
+            <button key={t.key} onClick={() => { setProductType(t.key as any); setPage(1); }}
+              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                productType === t.key ? 'bg-white text-sky-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -379,7 +397,16 @@ export default function PharmacyPage() {
                     return (
                       <tr key={drug.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-mono text-xs text-gray-600">{drug.code}</td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{drug.name}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">
+                          <span className="inline-flex items-center gap-1">
+                            {drug.productType === 'SUPPLEMENT' ? (
+                              <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium" title="Thực phẩm bổ sung">TPBS</span>
+                            ) : (
+                              <span className="text-xs px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded font-medium" title="Thuốc">Thuốc</span>
+                            )}
+                            {drug.name}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-gray-500">{drug.genericName ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-500">{drug.strength ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-500">{UNIT_LABELS[drug.unit] ?? drug.unit}</td>
@@ -538,13 +565,36 @@ export default function PharmacyPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm" />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Nhóm thuốc *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nhóm</label>
                 <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
                   required>
-                  <option value="">Chọn nhóm thuốc</option>
+                  <option value="">Chọn nhóm</option>
                   {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Loại sản phẩm *</label>
+                <div className="flex gap-2">
+                  {[
+                    { val: 'DRUG', label: '💊 Thuốc', desc: 'Cần kê đơn, theo Luật Dược' },
+                    { val: 'SUPPLEMENT', label: '🌿 Thực phẩm bổ sung', desc: 'TPCN, không kê đơn' },
+                  ].map(opt => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, productType: opt.val as any }))}
+                      className={`flex-1 px-3 py-2 border rounded-lg text-left transition-colors ${
+                        form.productType === opt.val
+                          ? 'border-sky-500 bg-sky-50 text-sky-900'
+                          : 'border-gray-300 hover:bg-gray-50 text-gray-600'
+                      }`}
+                    >
+                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="text-xs opacity-70">{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">

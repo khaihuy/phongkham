@@ -124,7 +124,10 @@ export const createMedicalRecordSchema = z.object({
   // Đơn thuốc kèm khi tạo hồ sơ — tùy chọn. Nếu có sẽ tạo Prescription
   // + PrescriptionItem ngay trong cùng request.
   prescriptions: z
-    .array(z.object({ items: z.array(prescriptionItemSchema).min(1) }))
+    .array(z.object({
+      type: z.enum(["PRESCRIPTION", "SUPPLEMENT_ORDER"]).default("PRESCRIPTION"),
+      items: z.array(prescriptionItemSchema).min(1),
+    }))
     .optional(),
 })
 
@@ -183,13 +186,14 @@ export const paymentSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Drugs
+// Drugs / Supplements
 export const createDrugSchema = z.object({
   categoryId: z.string().min(1, "Danh mục không được để trống"),
-  name: z.string().min(1, "Tên thuốc không được để trống"),
+  productType: z.enum(["DRUG", "SUPPLEMENT"]).default("DRUG"),
+  name: z.string().min(1, "Tên không được để trống"),
   genericName: z.string().optional(),
   brandName: z.string().optional(),
-  code: z.string().min(1, "Mã thuốc không được để trống"),
+  code: z.string().min(1, "Mã không được để trống"),
   barcode: z.string().optional(),
   unit: z.enum(["TABLET", "CAPSULE", "BOTTLE", "AMPOULE", "TUBE", "SACHET", "VIAL", "BOX"]),
   strength: z.string().optional(),

@@ -41,7 +41,15 @@ export default function PrescriptionPrintPage() {
   return (
     <>
       <div className="print:hidden fixed top-4 left-4 right-4 flex items-center justify-between z-10 bg-white/90 backdrop-blur rounded-xl shadow px-4 py-3">
-        <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium">
+        <button
+          onClick={() => {
+            // Trang in thường mở target="_blank" → router.back() vô hiệu.
+            // Thử đóng tab; nếu không được (cùng tab) thì điều hướng về MR.
+            if (window.opener) window.close()
+            else if (presc?.medicalRecord?.id) router.push(`/medical-records/${presc.medicalRecord.id}`)
+            else router.push('/medical-records')
+          }}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium">
           <ArrowLeft className="w-4 h-4" /> Quay lại
         </button>
         <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium">

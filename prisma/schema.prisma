@@ -99,6 +99,16 @@ enum PrescriptionStatus {
   CANCELLED
 }
 
+enum ProductType {
+  DRUG          // Thuốc (cần kê đơn, có quản lý theo Luật Dược)
+  SUPPLEMENT    // Thực phẩm bổ sung / TPCN (không kê đơn, quản lý nhẹ hơn)
+}
+
+enum PrescriptionType {
+  PRESCRIPTION       // Đơn thuốc
+  SUPPLEMENT_ORDER   // Đơn thực phẩm bổ sung
+}
+
 enum DrugTransactionType {
   IMPORT
   EXPORT
@@ -528,6 +538,7 @@ model DrugCategory {
 model Drug {
   id              String   @id @default(cuid())
   categoryId      String
+  productType     ProductType @default(DRUG)
   name            String
   genericName     String?
   brandName       String?
@@ -605,6 +616,7 @@ model Prescription {
   id              String             @id @default(cuid())
   medicalRecordId String
   prescriptionCode String            @unique
+  type            PrescriptionType   @default(PRESCRIPTION)
   status          PrescriptionStatus @default(PENDING)
   notes           String?
   dispensedAt     DateTime?

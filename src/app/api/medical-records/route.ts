@@ -78,10 +78,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
       return max
     })()
 
-    prescriptionCreates = prescriptions.map((p, idx) => ({
-      prescriptionCode: `DT${String(baseMax + idx + 1).padStart(4, "0")}`,
+    prescriptionCreates = prescriptions.map((p: any, idx: number) => ({
+      // TPBS dùng prefix DTBS để phân biệt với đơn thuốc thông thường
+      prescriptionCode: (p.type === "SUPPLEMENT_ORDER" ? "DTBS" : "DT") +
+        String(baseMax + idx + 1).padStart(4, "0"),
+      type: p.type ?? "PRESCRIPTION",
       items: {
-        create: p.items.map((it) => ({
+        create: p.items.map((it: any) => ({
           drugId: it.drugId,
           quantity: it.quantity,
           dosage: it.dosage,
