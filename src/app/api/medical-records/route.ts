@@ -59,9 +59,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const allCodes = await prisma.medicalRecord.findMany({ select: { recordCode: true } })
   const recordCode = nextCode(allCodes.map((c) => c.recordCode), "HS")
 
+  // appointmentId là tùy chọn — không cần lịch hẹn vẫn tạo được hồ sơ
+  // (vd. khám không hẹn, lễ tân quên đăng ký lịch trước)
+  const { appointmentId, ...rest } = input
+
   const record = await prisma.medicalRecord.create({
     data: {
-      ...input,
+      ...rest,
+      ...(appointmentId ? { appointmentId } : {}),
       recordCode,
       visitDate: new Date(input.visitDate),
       ...(input.followUpDate && { followUpDate: new Date(input.followUpDate) }),

@@ -88,10 +88,12 @@ export default function NewMedicalRecordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.appointmentId) { toast.error('Vui lòng chọn lịch hẹn'); return; }
+    if (!form.patientId) { toast.error('Vui lòng chọn bệnh nhân'); return; }
     if (!form.doctorId) { toast.error('Vui lòng chọn bác sĩ'); return; }
     createRecord.mutate({
       ...form,
+      // Bỏ appointmentId rỗng để backend hiểu là không có lịch hẹn
+      appointmentId: form.appointmentId || undefined,
       visitDate: form.visitDate,
       prescriptions: prescItems.length > 0 ? [{
         items: prescItems.map(it => ({
@@ -123,16 +125,22 @@ export default function NewMedicalRecordPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Lịch hẹn *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lịch hẹn <span className="text-gray-400 font-normal">(không bắt buộc)</span>
+              </label>
               <select value={form.appointmentId} onChange={e => {
                 const appt = appointments.find((a: any) => a.id === e.target.value);
                 setForm(f => ({ ...f, appointmentId: e.target.value, doctorId: appt?.doctorId ?? f.doctorId, chiefComplaint: appt?.chiefComplaint ?? f.chiefComplaint }));
               }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm" required>
-                <option value="">Chọn lịch hẹn</option>
-                {appointments.map((a: any) => (
-                  <option key={a.id} value={a.id}>{a.appointmentCode} — {new Date(a.scheduledDate).toLocaleDateString('vi-VN')} {a.scheduledTime}</option>
-                ))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm">
+                <option value="">— Khám không hẹn —</option>
+                {appointments.map((a: any) => {
+                  const d = new Date(a.scheduledDate);
+                  const dStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                  return (
+                    <option key={a.id} value={a.id}>{a.appointmentCode} — {dStr} {a.scheduledTime}</option>
+                  );
+                })}
               </select>
             </div>
             <div>
