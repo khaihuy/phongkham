@@ -270,10 +270,12 @@ export default function PatientsPage() {
               </select>
               <input
                 type="tel"
-                placeholder="Số điện thoại"
+                placeholder="Số điện thoại (VD: 0912345678)"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                title="10-11 số, có thể bắt đầu bằng 0 hoặc +84"
+                inputMode="tel"
                 required
               />
               <input

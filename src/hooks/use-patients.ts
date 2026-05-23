@@ -66,7 +66,10 @@ export function useCreatePatient() {
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || err.message || 'Tạo bệnh nhân thất bại');
+        const detailMsg = Array.isArray(err.details) && err.details.length > 0
+          ? err.details.map((d: any) => `${d.field}: ${d.message}`).join('; ')
+          : null;
+        throw new Error(detailMsg || err.error || err.message || 'Tạo bệnh nhân thất bại');
       }
       const result = await response.json();
       return result.data as Patient;
