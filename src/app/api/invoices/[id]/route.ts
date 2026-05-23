@@ -18,6 +18,14 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     include: {
       patient: true,
       appointment: true,
+      medicalRecord: {
+        include: {
+          prescriptions: {
+            include: { items: { include: { drug: true } } },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      },
       createdBy: { select: { id: true, fullName: true, email: true } },
       items: {
         include: {

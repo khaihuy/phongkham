@@ -441,7 +441,7 @@ export default function MedicalRecordDetailPage() {
 
       {/* Invoice preview banner after completion */}
       {invoicePreview && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2 text-emerald-800">
             <CheckCircle className="w-5 h-5 text-emerald-600" />
             <span className="font-medium">Hoàn tất khám — Hóa đơn {invoicePreview.invoice.invoiceCode}</span>
@@ -449,12 +449,28 @@ export default function MedicalRecordDetailPage() {
               ({invoicePreview.itemCount} khoản, {formatCurrency(invoicePreview.invoice.totalAmount)})
             </span>
           </div>
-          <Link
-            href={`/billing/${invoicePreview.invoice.id}`}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium"
-          >
-            <CreditCard className="w-4 h-4" /> Đến thanh toán
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {record.prescriptions?.map((presc: any, i: number) => (
+              <Link
+                key={presc.id}
+                href={`/prescriptions/${presc.id}/print`}
+                target="_blank"
+                className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium"
+              >
+                <Printer className="w-4 h-4" />
+                In đơn thuốc {record.prescriptions.length > 1 ? `#${i + 1}` : ''} ({presc.prescriptionCode})
+              </Link>
+            ))}
+            <Link
+              href={`/billing/${invoicePreview.invoice.id}`}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium"
+            >
+              <CreditCard className="w-4 h-4" /> Đến thanh toán
+            </Link>
+          </div>
+          {(!record.prescriptions || record.prescriptions.length === 0) && (
+            <p className="text-xs text-emerald-700">Không có đơn thuốc trong hồ sơ này.</p>
+          )}
         </div>
       )}
 

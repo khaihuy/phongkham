@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import { useAddPayment, useIssueInvoice } from '@/hooks/use-invoices';
-import { ArrowLeft, CreditCard, Printer, Loader, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, Printer, Loader, AlertCircle, CheckCircle, FileText, Pill } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 
 const printStyles = `
@@ -196,6 +197,41 @@ export default function InvoiceDetailPage() {
           {remaining > 0 && <div className="flex justify-between font-semibold text-red-600"><span>Còn lại</span><span>{fmtCur(remaining)}</span></div>}
         </div>
       </div>
+
+      {/* Đơn thuốc đã kê (in riêng cho BN, không kèm giá) */}
+      {invoice.medicalRecord?.prescriptions?.length > 0 && (
+        <div className="print-hide bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
+              <Pill className="w-4 h-4 text-sky-600" />
+              Đơn thuốc đã kê ({invoice.medicalRecord.prescriptions.length})
+            </h3>
+            <span className="text-xs text-gray-500">In ra cho bệnh nhân — không hiển thị giá</span>
+          </div>
+          <div className="space-y-2">
+            {invoice.medicalRecord.prescriptions.map((presc: any, i: number) => (
+              <div key={presc.id} className="flex items-center justify-between p-3 bg-sky-50 border border-sky-100 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-800 text-sm">
+                    Đơn #{i + 1} — <span className="font-mono">{presc.prescriptionCode}</span>
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {presc.items?.length ?? 0} loại thuốc · Tổng SL:{' '}
+                    {(presc.items ?? []).reduce((s: number, it: any) => s + (it.quantity ?? 0), 0)}
+                  </p>
+                </div>
+                <Link
+                  href={`/prescriptions/${presc.id}/print`}
+                  target="_blank"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium"
+                >
+                  <Printer className="w-4 h-4" /> In đơn (không giá)
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Payment history */}
       {invoice.payments?.length > 0 && (

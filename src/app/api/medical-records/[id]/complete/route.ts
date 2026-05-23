@@ -146,6 +146,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
         invoiceCode,
         patientId: record.patientId,
         ...(record.appointmentId ? { appointmentId: record.appointmentId } : {}),
+        medicalRecordId: record.id,
         createdById: user.id,
         status: "DRAFT",
         subtotal,

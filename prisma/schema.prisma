@@ -430,6 +430,7 @@ model MedicalRecord {
   labOrders      LabOrder[]
   imageOrders    ImageOrder[]
   services       MedicalRecordService[]
+  invoice        Invoice?
 }
 
 enum MedicalServiceStatus {
@@ -661,6 +662,7 @@ model Invoice {
   invoiceCode     String        @unique
   patientId       String
   appointmentId   String?       @unique
+  medicalRecordId String?       @unique
   createdById     String
   status          InvoiceStatus @default(DRAFT)
   subtotal        Decimal       @db.Decimal(12, 2)
@@ -678,9 +680,10 @@ model Invoice {
   deletedAt       DateTime?
 
   patient     Patient       @relation(fields: [patientId], references: [id])
-  appointment Appointment?  @relation(fields: [appointmentId], references: [id])
-  createdBy   User          @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
-  items       InvoiceItem[]
+  appointment   Appointment?   @relation(fields: [appointmentId], references: [id])
+  medicalRecord MedicalRecord? @relation(fields: [medicalRecordId], references: [id])
+  createdBy     User           @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  items         InvoiceItem[]
   payments    Payment[]
 }
 
