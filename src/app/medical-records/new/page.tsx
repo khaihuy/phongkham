@@ -48,10 +48,17 @@ export default function NewMedicalRecordPage() {
     queryFn: async () => { const r = await fetch('/api/patients?pageSize=200'); const j = await r.json(); return j.data ?? []; },
   });
   const { data: appointments = [] } = useQuery({
-    queryKey: ['completed-appointments', form.patientId],
+    queryKey: ['patient-appointments', form.patientId],
     queryFn: async () => {
-      const r = await fetch(`/api/appointments?patientId=${form.patientId}&status=COMPLETED&pageSize=50`);
-      const j = await r.json(); return j.data ?? [];
+      // Lấy mọi lịch hẹn của BN trừ CANCELLED/NO_SHOW — gồm cả PENDING,
+      // CONFIRMED, IN_PROGRESS, COMPLETED. Bác sĩ thường tạo hồ sơ ngay
+      // khi đang khám (IN_PROGRESS) chứ không đợi đến lúc COMPLETED.
+      const r = await fetch(`/api/appointments?patientId=${form.patientId}&pageSize=50`);
+      const j = await r.json();
+      const all: any[] = j.data ?? [];
+      return all
+        .filter((a) => a.status !== 'CANCELLED' && a.status !== 'NO_SHOW')
+        .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime());
     },
     enabled: !!form.patientId,
   });
@@ -137,8 +144,16 @@ export default function NewMedicalRecordPage() {
                 {appointments.map((a: any) => {
                   const d = new Date(a.scheduledDate);
                   const dStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                  const statusLabel = ({
+                    PENDING: 'Chờ khám',
+                    CONFIRMED: 'Đã xác nhận',
+                    IN_PROGRESS: 'Đang khám',
+                    COMPLETED: 'Hoàn thành',
+                  } as Record<string, string>)[a.status] ?? a.status;
                   return (
-                    <option key={a.id} value={a.id}>{a.appointmentCode} — {dStr} {a.scheduledTime}</option>
+                    <option key={a.id} value={a.id}>
+                      {a.appointmentCode} — {dStr} {a.scheduledTime} · {statusLabel}
+                    </option>
                   );
                 })}
               </select>
