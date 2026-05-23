@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Trash2, Loader } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader, Stethoscope, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PrescriptionItem {
@@ -15,6 +15,15 @@ interface PrescriptionItem {
   duration: string;
   route: string;
   unitPrice: string;
+}
+
+interface ServiceItem {
+  serviceId: string;
+  serviceName: string;
+  serviceCode: string;
+  unitPrice: number;
+  quantity: number;
+  notes: string;
 }
 
 export default function NewMedicalRecordPage() {
@@ -43,6 +52,11 @@ export default function NewMedicalRecordPage() {
     drugId: '', drugName: '', quantity: 1, dosage: '1 viên', frequency: '2 lần/ngày', duration: '7 ngày', route: 'Uống', unitPrice: '5000',
   });
 
+  const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
+  const [pendingServiceId, setPendingServiceId] = useState('');
+  const [pendingServiceQty, setPendingServiceQty] = useState(1);
+  const [pendingServiceNotes, setPendingServiceNotes] = useState('');
+
   const { data: patients = [] } = useQuery({
     queryKey: ['patients-all'],
     queryFn: async () => { const r = await fetch('/api/patients?pageSize=200'); const j = await r.json(); return j.data ?? []; },
@@ -70,17 +84,36 @@ export default function NewMedicalRecordPage() {
     queryKey: ['drugs-all'],
     queryFn: async () => { const r = await fetch('/api/drugs?pageSize=200'); const j = await r.json(); return j.data ?? []; },
   });
+  const { data: services = [] } = useQuery({
+    queryKey: ['services-all'],
+    queryFn: async () => { const r = await fetch('/api/services?pageSize=200'); const j = await r.json(); return j.data ?? []; },
+  });
 
   const createRecord = useMutation({
     mutationFn: async (data: any) => {
       const r = await fetch('/api/medical-records', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
       });
-      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? 'Failed'); }
-      return (await r.json()).data;
+      if (!r.ok) {
+        const e = await r.json();
+        const detailMsg = Array.isArray(e.details) && e.details.length > 0
+          ? e.details.map((d: any) => `${d.field}: ${d.message}`).join('; ')
+          : null;
+        throw new Error(detailMsg || e.error || 'Tạo hồ sơ thất bại');
+      }
+      const record = (await r.json()).data;
+      // Sau khi tạo MR, POST từng service (thứ tự đã đúng vì auto-increment sequence)
+      for (const svc of serviceItems) {
+        await fetch(`/api/medical-records/${record.id}/services`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceId: svc.serviceId, quantity: svc.quantity, notes: svc.notes || undefined }),
+        });
+      }
+      return record;
     },
-    onSuccess: (record) => {
-      toast.success('Tạo hồ sơ bệnh án thành công');
+    onSuccess: () => {
+      toast.success(`Tạo hồ sơ bệnh án thành công${serviceItems.length > 0 ? ` với ${serviceItems.length} dịch vụ` : ''}`);
       router.push(`/medical-records`);
     },
     onError: (e: any) => toast.error(e.message ?? 'Tạo hồ sơ thất bại'),
@@ -91,6 +124,39 @@ export default function NewMedicalRecordPage() {
     setPrescItems(items => [...items, { ...newItem }]);
     setNewItem({ drugId: '', drugName: '', quantity: 1, dosage: '1 viên', frequency: '2 lần/ngày', duration: '7 ngày', route: 'Uống', unitPrice: '5000' });
     setShowPrescForm(false);
+  }
+
+  function addServiceItem() {
+    if (!pendingServiceId) { toast.error('Chọn dịch vụ'); return; }
+    if (serviceItems.some(s => s.serviceId === pendingServiceId)) {
+      toast.error('Dịch vụ này đã được thêm');
+      return;
+    }
+    const svc = services.find((s: any) => s.id === pendingServiceId);
+    if (!svc) return;
+    setServiceItems(items => [...items, {
+      serviceId: svc.id,
+      serviceName: svc.name,
+      serviceCode: svc.code,
+      unitPrice: Number(svc.price),
+      quantity: pendingServiceQty,
+      notes: pendingServiceNotes,
+    }]);
+    setPendingServiceId(''); setPendingServiceQty(1); setPendingServiceNotes('');
+  }
+
+  function moveService(idx: number, dir: 'up' | 'down') {
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    if (target < 0 || target >= serviceItems.length) return;
+    setServiceItems(items => {
+      const next = [...items];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  }
+
+  function removeService(idx: number) {
+    setServiceItems(items => items.filter((_, i) => i !== idx));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -215,6 +281,94 @@ export default function NewMedicalRecordPage() {
               <textarea value={form.treatment} onChange={e => setForm(f => ({ ...f, treatment: e.target.value }))}
                 rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm" />
             </div>
+          </div>
+        </div>
+
+        {/* Dịch vụ chỉ định */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-indigo-600" />
+              Dịch vụ chỉ định
+              {serviceItems.length > 0 && (
+                <span className="text-xs text-gray-400">
+                  ({serviceItems.length} · {' '}
+                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                    .format(serviceItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0))})
+                </span>
+              )}
+            </h3>
+          </div>
+
+          {/* List */}
+          {serviceItems.length > 0 && (
+            <div className="space-y-2">
+              {serviceItems.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 p-3 bg-indigo-50 rounded-lg text-sm">
+                  <div className="flex flex-col items-center gap-0.5 mr-1">
+                    <button type="button" onClick={() => moveService(i, 'up')} disabled={i === 0}
+                      className="p-0.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <ArrowUp className="w-3 h-3" />
+                    </button>
+                    <span className="text-xs font-bold text-indigo-700">{i + 1}</span>
+                    <button type="button" onClick={() => moveService(i, 'down')} disabled={i === serviceItems.length - 1}
+                      className="p-0.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{item.serviceName}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.serviceCode} · SL: {item.quantity} × {item.unitPrice.toLocaleString('vi-VN')}đ
+                    </p>
+                    {item.notes && <p className="text-xs text-gray-600 italic">{item.notes}</p>}
+                  </div>
+                  <div className="text-sm font-bold text-indigo-700 whitespace-nowrap">
+                    {(item.unitPrice * item.quantity).toLocaleString('vi-VN')}đ
+                  </div>
+                  <button type="button" onClick={() => removeService(i)}
+                    className="p-1 text-gray-400 hover:text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Form thêm */}
+          <div className="border border-dashed border-gray-300 rounded-lg p-3 bg-gray-50 space-y-2">
+            <div className="grid grid-cols-12 gap-2">
+              <div className="col-span-7">
+                <select value={pendingServiceId} onChange={e => setPendingServiceId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">— Chọn dịch vụ từ danh mục —</option>
+                  {services.map((s: any) => (
+                    <option key={s.id} value={s.id} disabled={serviceItems.some(i => i.serviceId === s.id)}>
+                      {s.name} ({s.code}) — {Number(s.price).toLocaleString('vi-VN')}đ
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <input type="number" min={1} value={pendingServiceQty}
+                  onChange={e => setPendingServiceQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  placeholder="SL"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div className="col-span-3">
+                <button type="button" onClick={addServiceItem} disabled={!pendingServiceId}
+                  className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1">
+                  <Plus className="w-4 h-4" /> Thêm
+                </button>
+              </div>
+            </div>
+            <input type="text" value={pendingServiceNotes}
+              onChange={e => setPendingServiceNotes(e.target.value)}
+              placeholder="Ghi chú (không bắt buộc)"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <p className="text-xs text-gray-500">
+              Dùng <ArrowUp className="inline w-3 h-3" /> <ArrowDown className="inline w-3 h-3" /> để sắp xếp thứ tự thực hiện. Có thể thêm/sửa thêm sau ở trang chi tiết hồ sơ.
+            </p>
           </div>
         </div>
 
