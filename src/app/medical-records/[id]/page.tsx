@@ -284,7 +284,9 @@ export default function MedicalRecordDetailPage() {
     if (!confirm('Hoàn tất khám và tạo hóa đơn tự động?')) return;
     setCompleting(true);
     try {
-      const r = await fetch(`/api/appointments/${record.appointmentId}/complete`, {
+      // Dùng endpoint medical-records để xử lý cả trường hợp khám không hẹn
+      // (record.appointmentId có thể là null)
+      const r = await fetch(`/api/medical-records/${id}/complete`, {
         method: 'POST',
       });
       const j = await r.json();
