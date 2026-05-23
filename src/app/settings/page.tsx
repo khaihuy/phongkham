@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LogOut, User, Shield, Building2, Phone, Mail, MapPin, Globe, FileText, Hash, Save, Loader, DatabaseZap } from 'lucide-react';
+import { LogOut, User, Shield, Building2, Phone, Mail, MapPin, Globe, FileText, Hash, Save, Loader, DatabaseZap, Plug, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -17,7 +17,7 @@ const ROLE_LABELS: Record<string, string> = {
 export default function SettingsPage() {
   const { data: session } = useSession();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'clinic' | 'account'>('clinic');
+  const [tab, setTab] = useState<'clinic' | 'integrations' | 'account'>('clinic');
 
   const { data: clinicData, isLoading: clinicLoading } = useQuery({
     queryKey: ['clinic'],
@@ -90,6 +90,7 @@ export default function SettingsPage() {
       <div className="flex border-b border-gray-200">
         {[
           { key: 'clinic', label: 'Thông tin phòng khám', icon: Building2 },
+          { key: 'integrations', label: 'Tích hợp', icon: Plug },
           { key: 'account', label: 'Tài khoản', icon: User },
         ].map(t => {
           const Icon = t.icon;
@@ -204,6 +205,9 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Integrations Tab */}
+      {tab === 'integrations' && <IntegrationsTab isAdmin={isAdmin} />}
+
       {/* Account Tab */}
       {tab === 'account' && (
         <div className="space-y-4">
@@ -249,6 +253,131 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Integrations Tab ─────────────────────────────────────
+
+function IntegrationsTab({ isAdmin }: { isAdmin: boolean }) {
+  const { data: status, isLoading, refetch } = useQuery({
+    queryKey: ['kiotviet-status'],
+    queryFn: async () => {
+      const r = await fetch('/api/integrations/kiotviet/status');
+      return (await r.json()).data;
+    },
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch('/api/integrations/kiotviet/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? 'Sync thất bại'); }
+      return (await r.json()).data;
+    },
+  });
+
+  async function handleSync() {
+    try {
+      const result = await syncMutation.mutateAsync();
+      toast.success(
+        `Sync xong: ${result.inserted} mới, ${result.updated} cập nhật` +
+        (result.skipped > 0 ? `, ${result.skipped} bỏ qua` : '') +
+        ` (${result.durationMs}ms)`
+      );
+    } catch (e: any) {
+      toast.error(e.message ?? 'Sync thất bại');
+    }
+  }
+
+  const isMock = status?.mode === 'mock';
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+          <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+            <Plug className="w-5 h-5 text-orange-600" />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-semibold text-gray-900">KiotViet — Đồng bộ kho thuốc</h2>
+            <p className="text-xs text-gray-500">Pull sản phẩm + tồn kho từ KiotViet về DB local (1 chiều)</p>
+          </div>
+          {isLoading ? (
+            <Loader className="w-5 h-5 animate-spin text-gray-400" />
+          ) : status?.ok ? (
+            <span className="flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Kết nối OK
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-medium">
+              <XCircle className="w-3.5 h-3.5" /> Lỗi
+            </span>
+          )}
+        </div>
+
+        {status && (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-gray-500">Chế độ</p>
+              <p className="font-medium text-gray-900">
+                {isMock ? (
+                  <span className="text-amber-600">Mock (dữ liệu giả lập)</span>
+                ) : (
+                  <span className="text-green-600">Production</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-500">Retailer</p>
+              <p className="font-medium text-gray-900">{status.retailer ?? '—'}</p>
+            </div>
+          </div>
+        )}
+
+        {isMock && (
+          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            <Plug className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>
+              Đang chạy mock. Cấu hình{' '}
+              <code className="bg-white px-1 rounded">KIOTVIET_RETAILER</code>,{' '}
+              <code className="bg-white px-1 rounded">KIOTVIET_CLIENT_ID</code>,{' '}
+              <code className="bg-white px-1 rounded">KIOTVIET_CLIENT_SECRET</code>{' '}
+              trong env để kết nối tài khoản KiotViet thật. Đăng ký tại{' '}
+              <a className="underline" href="https://developer.kiotviet.vn" target="_blank" rel="noreferrer">
+                developer.kiotviet.vn
+              </a>.
+            </span>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={handleSync}
+              disabled={syncMutation.isPending}
+              className="flex items-center gap-2 px-5 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors"
+            >
+              {syncMutation.isPending ? <Loader className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Đồng bộ ngay
+            </button>
+            <button
+              onClick={() => refetch()}
+              className="flex items-center gap-2 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+            >
+              Kiểm tra kết nối
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Placeholder cho integrations tương lai */}
+      <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+        <p>Sắp có: Drugbank.vn (tra cứu thuốc), Đơn thuốc Quốc gia (TT 04/2022), SMTP email</p>
+      </div>
     </div>
   );
 }
