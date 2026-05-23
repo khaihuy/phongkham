@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal from '@/components/ui/Modal';
-import { Plus, Edit2, PlayCircle, XCircle, FileText, Loader, AlertCircle, Megaphone, Info } from 'lucide-react';
+import { Plus, Edit2, PlayCircle, XCircle, FileText, Loader, AlertCircle, Megaphone, Info, BellRing } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ─── Types ───────────────────────────────────────────────
@@ -435,6 +435,50 @@ function ActionButtons({ campaign, onEdit, onViewLogs }: {
   );
 }
 
+// ─── Run Reminders Button ─────────────────────────────────
+
+function RunRemindersButton() {
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/reminders/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'SMS', windowHours: 24 }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? 'Gửi nhắc lịch thất bại');
+      }
+      return res.json();
+    },
+  });
+
+  async function handleClick() {
+    try {
+      const { data } = await mutation.mutateAsync();
+      toast.success(
+        `Đã gửi ${data.totalSent}/${data.totalAttempted} nhắc lịch` +
+        (data.totalFailed > 0 ? ` (${data.totalFailed} lỗi)` : '') +
+        (data.totalSkipped > 0 ? `, ${data.totalSkipped} bỏ qua (thiếu SĐT)` : '')
+      );
+    } catch (err: any) {
+      toast.error(err.message ?? 'Có lỗi xảy ra');
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={mutation.isPending}
+      className="flex items-center gap-2 px-4 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:bg-gray-100 text-amber-800 rounded-lg font-medium transition-colors"
+      title="Gửi nhắc cho mọi lịch hẹn trong 24h tới"
+    >
+      {mutation.isPending ? <Loader className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}
+      Gửi nhắc lịch (24h)
+    </button>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────
 
 export default function MarketingPage() {
@@ -476,12 +520,25 @@ export default function MarketingPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Marketing &amp; Chiến dịch</h1>
-        <button
-          onClick={() => { setEditCampaign(null); setFormModal(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
-        >
-          <Plus className="w-5 h-5" /> Tạo chiến dịch
-        </button>
+        <div className="flex gap-2">
+          <RunRemindersButton />
+          <button
+            onClick={() => { setEditCampaign(null); setFormModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <Plus className="w-5 h-5" /> Tạo chiến dịch
+          </button>
+        </div>
+      </div>
+
+      {/* Provider notice */}
+      <div className="flex items-start gap-2 p-3 bg-sky-50 border border-sky-200 rounded-lg text-sm text-sky-800">
+        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <span>
+          Đang chạy ở chế độ <strong>mock provider</strong> — tin nhắn được ghi log nhưng không gửi thật.
+          Cấu hình <code className="bg-white px-1 rounded">ZALO_OA_ID</code>,{' '}
+          <code className="bg-white px-1 rounded">SMS_API_KEY</code> trong env để bật provider thật.
+        </span>
       </div>
 
       {/* Stats */}

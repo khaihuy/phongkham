@@ -7,6 +7,7 @@ import {
   sendSuccess,
   error,
 } from "@/lib/api-utils"
+import { launchCampaign } from "@/lib/services/marketing/campaign.service"
 
 const updateCampaignSchema = z.object({
   name: z.string().min(1).optional(),
@@ -71,24 +72,25 @@ export const PATCH = apiHandler(async (request: NextRequest, context: any) => {
   const body = await request.json()
   const { action } = patchCampaignSchema.parse(body)
 
-  let updateData: any = {}
-
   if (action === "launch") {
     if (!["DRAFT", "SCHEDULED"].includes(existing.status)) {
       throw error("CONFLICT", 409, "Chỉ có thể khởi chạy chiến dịch ở trạng thái Nháp hoặc Đã lên lịch")
     }
-    updateData = { status: "RUNNING", sentAt: new Date() }
-  } else if (action === "cancel") {
+    const result = await launchCampaign(id)
+    const campaign = await prisma.campaign.findUnique({ where: { id } })
+    return sendSuccess({ campaign, result })
+  }
+
+  if (action === "cancel") {
     if (["COMPLETED", "CANCELLED"].includes(existing.status)) {
       throw error("CONFLICT", 409, "Không thể hủy chiến dịch đã hoàn thành hoặc đã hủy")
     }
-    updateData = { status: "CANCELLED" }
+    const campaign = await prisma.campaign.update({
+      where: { id },
+      data: { status: "CANCELLED" },
+    })
+    return sendSuccess(campaign)
   }
 
-  const campaign = await prisma.campaign.update({
-    where: { id },
-    data: updateData,
-  })
-
-  return sendSuccess(campaign)
+  throw error("VALIDATION", 400, `Unknown action: ${action}`)
 })
