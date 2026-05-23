@@ -78,25 +78,16 @@ Username: reception      | Vai trò: Lễ tân
 
 ## 📦 Production (Railway)
 
-### Deployment
+Xem hướng dẫn chi tiết tại [`docs/deploy-railway.md`](docs/deploy-railway.md).
 
-```bash
-# Railway tự động detect Dockerfile
-# 1. Push code lên repository
-# 2. Kết nối repo với Railway
-# 3. Railway tự động:
-#    - Build Docker image
-#    - Chạy migrations (prisma migrate deploy)
-#    - Seed dữ liệu (prisma db seed)
-#    - Khởi động ứng dụng
-```
+### Tóm tắt nhanh
 
-### Environment Variables (Railway)
-
-Railway sẽ tự động inject:
-- `DATABASE_URL` — PostgreSQL connection
-- `NEXTAUTH_SECRET` — Auth secret key
-- Các biến khác từ Settings → Variables
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** → chọn `khaihuy/phongkham`
+2. **+ New** → **Database** → **PostgreSQL** → reference `DATABASE_URL` vào service app
+3. Service → **Variables**: thêm `NEXTAUTH_SECRET` (≥32 ký tự), `NEXTAUTH_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}`, `NODE_ENV=production`
+4. Service → **Settings** → **Networking** → **Generate Domain**
+5. Railway tự build từ `Dockerfile`, chạy `prisma db push` + seed (từ `start.sh`), healthcheck `/api/health` → SUCCESS
+6. Đăng nhập `admin / Password123!` rồi **đổi mật khẩu ngay**
 
 ## 📋 Scripts Sẵn Có
 

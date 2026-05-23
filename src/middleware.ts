@@ -9,7 +9,8 @@ export async function middleware(request: NextRequest) {
     // Allow public paths
     if (
       request.nextUrl.pathname === '/login' ||
-      request.nextUrl.pathname.startsWith('/api/auth')
+      request.nextUrl.pathname.startsWith('/api/auth') ||
+      request.nextUrl.pathname === '/api/health'
     ) {
       return;
     }
