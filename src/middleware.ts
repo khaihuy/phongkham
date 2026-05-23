@@ -6,11 +6,16 @@ export async function middleware(request: NextRequest) {
 
   // Check if user is authenticated
   if (!session) {
+    const path = request.nextUrl.pathname;
     // Allow public paths
     if (
-      request.nextUrl.pathname === '/login' ||
-      request.nextUrl.pathname.startsWith('/api/auth') ||
-      request.nextUrl.pathname === '/api/health'
+      path === '/login' ||
+      path.startsWith('/api/auth') ||
+      path === '/api/health' ||
+      path === '/manifest.json' ||
+      path === '/sw.js' ||
+      path === '/favicon.svg' ||
+      path.startsWith('/icons/')
     ) {
       return;
     }
