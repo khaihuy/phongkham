@@ -12,6 +12,12 @@ const updateClinicSchema = z.object({
   website: z.string().optional(),
   licenseNo: z.string().optional(),
   logoUrl: z.string().optional(),
+  pharmacyName: z.string().optional(),
+  pharmacyAddress: z.string().optional(),
+  pharmacyPhone: z.string().optional(),
+  pharmacyLicenseNo: z.string().optional(),
+  pharmacyManager: z.string().optional(),
+  pharmacyTaxCode: z.string().optional(),
 })
 
 export const GET = apiHandler(async () => {

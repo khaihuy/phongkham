@@ -458,18 +458,23 @@ export default function MedicalRecordDetailPage() {
             >
               <Printer className="w-4 h-4" /> In phiếu dịch vụ
             </Link>
-            {/* In đơn thuốc — không giá */}
-            {record.prescriptions?.map((presc: any, i: number) => (
-              <Link
-                key={presc.id}
-                href={`/prescriptions/${presc.id}/print`}
-                target="_blank"
-                className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium"
-              >
-                <Printer className="w-4 h-4" />
-                In đơn thuốc {record.prescriptions.length > 1 ? `#${i + 1}` : ''}
-              </Link>
-            ))}
+            {/* In đơn thuốc / TPCN — không giá */}
+            {record.prescriptions?.map((presc: any) => {
+              const isTPCN = presc.type === 'SUPPLEMENT_ORDER';
+              return (
+                <Link
+                  key={presc.id}
+                  href={`/prescriptions/${presc.id}/print`}
+                  target="_blank"
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white ${
+                    isTPCN ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'
+                  }`}
+                >
+                  <Printer className="w-4 h-4" />
+                  {isTPCN ? 'In đơn TPCN' : 'In đơn thuốc'}
+                </Link>
+              );
+            })}
             {/* Đến hóa đơn để thanh toán + in hóa đơn (có giá) */}
             <Link
               href={`/billing/${invoicePreview.invoice.id}`}

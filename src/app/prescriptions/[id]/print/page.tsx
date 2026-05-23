@@ -53,21 +53,35 @@ export default function PrescriptionPrintPage() {
           <ArrowLeft className="w-4 h-4" /> Quay lại
         </button>
         <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium">
-          <Printer className="w-4 h-4" /> In đơn thuốc
+          <Printer className="w-4 h-4" /> {presc.type === 'SUPPLEMENT_ORDER' ? 'In đơn TPCN' : 'In đơn thuốc'}
         </button>
       </div>
 
       <div className="min-h-screen bg-gray-100 print:bg-white flex items-start justify-center pt-20 print:pt-0 pb-8 print:pb-0">
         <div className="w-[148mm] bg-white shadow-lg print:shadow-none p-8 space-y-5 text-sm">
-          {/* Clinic header */}
-          <div className="text-center border-b-2 border-gray-800 pb-3">
-            <h1 className="text-lg font-bold uppercase">{clinic?.name ?? 'PHÒNG KHÁM'}</h1>
-            {clinic?.address && <p className="text-xs text-gray-600">{clinic.address}</p>}
-            <p className="text-xs text-gray-600">ĐT: {clinic?.phone ?? '—'}{clinic?.licenseNo ? ` · GP: ${clinic.licenseNo}` : ''}</p>
-          </div>
+          {/* Header — dùng thông tin Nhà thuốc cho đơn TPCN, Phòng khám cho đơn thuốc */}
+          {presc.type === 'SUPPLEMENT_ORDER' && clinic?.pharmacyName ? (
+            <div className="text-center border-b-2 border-emerald-700 pb-3">
+              <h1 className="text-lg font-bold uppercase text-emerald-800">{clinic.pharmacyName}</h1>
+              {clinic.pharmacyAddress && <p className="text-xs text-gray-600">{clinic.pharmacyAddress}</p>}
+              <p className="text-xs text-gray-600">
+                ĐT: {clinic.pharmacyPhone ?? clinic.phone ?? '—'}
+                {clinic.pharmacyLicenseNo ? ` · GCN: ${clinic.pharmacyLicenseNo}` : ''}
+              </p>
+              {clinic.pharmacyTaxCode && <p className="text-xs text-gray-500">MST: {clinic.pharmacyTaxCode}</p>}
+            </div>
+          ) : (
+            <div className="text-center border-b-2 border-gray-800 pb-3">
+              <h1 className="text-lg font-bold uppercase">{clinic?.name ?? 'PHÒNG KHÁM'}</h1>
+              {clinic?.address && <p className="text-xs text-gray-600">{clinic.address}</p>}
+              <p className="text-xs text-gray-600">ĐT: {clinic?.phone ?? '—'}{clinic?.licenseNo ? ` · GP: ${clinic.licenseNo}` : ''}</p>
+            </div>
+          )}
 
           <div className="text-center">
-            <h2 className="text-xl font-bold uppercase tracking-widest">ĐƠN THUỐC</h2>
+            <h2 className="text-xl font-bold uppercase tracking-widest">
+              {presc.type === 'SUPPLEMENT_ORDER' ? 'ĐƠN THỰC PHẨM CHỨC NĂNG' : 'ĐƠN THUỐC'}
+            </h2>
             <p className="text-xs text-gray-500 font-mono mt-0.5">Mã: {presc.prescriptionCode} · {new Date(presc.createdAt).toLocaleDateString('vi-VN')}</p>
           </div>
 
@@ -126,9 +140,15 @@ export default function PrescriptionPrintPage() {
           <div className="flex justify-end pt-2">
             <div className="text-center">
               <p className="text-xs text-gray-500">{clinic?.address?.split(',').slice(-1)[0]?.trim() ?? ''}, ngày {new Date().getDate()} tháng {new Date().getMonth()+1} năm {new Date().getFullYear()}</p>
-              <p className="text-sm font-semibold mt-1">Bác sĩ điều trị</p>
+              <p className="text-sm font-semibold mt-1">
+                {presc.type === 'SUPPLEMENT_ORDER' ? 'Dược sĩ phụ trách' : 'Bác sĩ điều trị'}
+              </p>
               <div className="h-12" />
-              <p className="text-sm font-bold border-t border-gray-800 pt-1">{doctor?.fullName ?? '—'}</p>
+              <p className="text-sm font-bold border-t border-gray-800 pt-1">
+                {presc.type === 'SUPPLEMENT_ORDER'
+                  ? (clinic?.pharmacyManager ?? doctor?.fullName ?? '—')
+                  : (doctor?.fullName ?? '—')}
+              </p>
             </div>
           </div>
         </div>

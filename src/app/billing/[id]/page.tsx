@@ -233,32 +233,39 @@ export default function InvoiceDetailPage() {
               </div>
             </Link>
 
-            {/* Đơn thuốc — không giá, để BN cầm đi mua/lấy thuốc */}
+            {/* Đơn thuốc / Đơn TPCN — không giá, phân biệt theo type */}
             {invoice.medicalRecord?.prescriptions?.length > 0 ? (
-              invoice.medicalRecord.prescriptions.map((presc: any, i: number) => (
-                <Link
-                  key={presc.id}
-                  href={`/prescriptions/${presc.id}/print`}
-                  target="_blank"
-                  className="flex items-start gap-3 p-3 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg text-left transition-colors"
-                >
-                  <Pill className="w-5 h-5 text-sky-700 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sky-800 text-sm">
-                      Đơn thuốc{invoice.medicalRecord.prescriptions.length > 1 ? ` #${i + 1}` : ''}
-                    </p>
-                    <p className="text-xs text-sky-600 mt-0.5">
-                      Không giá · {presc.items?.length ?? 0} loại · {presc.prescriptionCode}
-                    </p>
-                  </div>
-                </Link>
-              ))
+              invoice.medicalRecord.prescriptions.map((presc: any) => {
+                const isTPCN = presc.type === 'SUPPLEMENT_ORDER';
+                return (
+                  <Link
+                    key={presc.id}
+                    href={`/prescriptions/${presc.id}/print`}
+                    target="_blank"
+                    className={`flex items-start gap-3 p-3 border rounded-lg text-left transition-colors ${
+                      isTPCN
+                        ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
+                        : 'bg-sky-50 hover:bg-sky-100 border-sky-200'
+                    }`}
+                  >
+                    <Pill className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isTPCN ? 'text-emerald-700' : 'text-sky-700'}`} />
+                    <div>
+                      <p className={`font-medium text-sm ${isTPCN ? 'text-emerald-800' : 'text-sky-800'}`}>
+                        {isTPCN ? '🌿 Đơn TPCN' : '💊 Đơn thuốc'}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${isTPCN ? 'text-emerald-600' : 'text-sky-600'}`}>
+                        Không giá · {presc.items?.length ?? 0} loại · {presc.prescriptionCode}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })
             ) : (
               <div className="flex items-start gap-3 p-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-left opacity-60">
                 <Pill className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-medium text-gray-500 text-sm">Đơn thuốc</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Chưa có đơn thuốc</p>
+                  <p className="font-medium text-gray-500 text-sm">Đơn thuốc / TPCN</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Chưa có đơn</p>
                 </div>
               </div>
             )}

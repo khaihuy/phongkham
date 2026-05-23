@@ -30,6 +30,8 @@ export default function SettingsPage() {
   const [clinicForm, setClinicForm] = useState({
     name: '', taxCode: '', phone: '', email: '',
     address: '', website: '', licenseNo: '',
+    pharmacyName: '', pharmacyAddress: '', pharmacyPhone: '',
+    pharmacyLicenseNo: '', pharmacyManager: '', pharmacyTaxCode: '',
   });
 
   useEffect(() => {
@@ -42,6 +44,12 @@ export default function SettingsPage() {
         address: clinicData.address ?? '',
         website: clinicData.website ?? '',
         licenseNo: clinicData.licenseNo ?? '',
+        pharmacyName: clinicData.pharmacyName ?? '',
+        pharmacyAddress: clinicData.pharmacyAddress ?? '',
+        pharmacyPhone: clinicData.pharmacyPhone ?? '',
+        pharmacyLicenseNo: clinicData.pharmacyLicenseNo ?? '',
+        pharmacyManager: clinicData.pharmacyManager ?? '',
+        pharmacyTaxCode: clinicData.pharmacyTaxCode ?? '',
       });
     }
   }, [clinicData]);
@@ -181,6 +189,66 @@ export default function SettingsPage() {
                     disabled={!isAdmin}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-gray-50 disabled:text-gray-500"
                     placeholder="https://phongkham.vn" />
+                </div>
+              </div>
+
+              {/* ─── Nhà thuốc đính kèm ─── */}
+              <div className="pt-6 mt-2 border-t border-gray-100 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-emerald-600 text-lg">💊</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Nhà thuốc đính kèm</h3>
+                    <p className="text-xs text-gray-500">
+                      Thông tin riêng cho nhà thuốc — sẽ hiển thị trên đơn TPCN/TPBS (khác với header phòng khám trên đơn thuốc bác sĩ)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tên nhà thuốc</label>
+                    <input value={clinicForm.pharmacyName} onChange={e => f('pharmacyName', e.target.value)}
+                      disabled={!isAdmin}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50 disabled:text-gray-500"
+                      placeholder="VD: Nhà thuốc An Khang" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ nhà thuốc</label>
+                    <input value={clinicForm.pharmacyAddress} onChange={e => f('pharmacyAddress', e.target.value)}
+                      disabled={!isAdmin}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50 disabled:text-gray-500"
+                      placeholder="Để trống nếu cùng địa chỉ phòng khám" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Điện thoại</label>
+                    <input value={clinicForm.pharmacyPhone} onChange={e => f('pharmacyPhone', e.target.value)}
+                      disabled={!isAdmin}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50 disabled:text-gray-500"
+                      placeholder="028 1234 5678" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mã số thuế</label>
+                    <input value={clinicForm.pharmacyTaxCode} onChange={e => f('pharmacyTaxCode', e.target.value)}
+                      disabled={!isAdmin}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50 disabled:text-gray-500"
+                      placeholder="0123456789" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">GCN đủ ĐK kinh doanh thuốc</label>
+                    <input value={clinicForm.pharmacyLicenseNo} onChange={e => f('pharmacyLicenseNo', e.target.value)}
+                      disabled={!isAdmin}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50 disabled:text-gray-500"
+                      placeholder="GPP-12345" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dược sĩ phụ trách</label>
+                    <input value={clinicForm.pharmacyManager} onChange={e => f('pharmacyManager', e.target.value)}
+                      disabled={!isAdmin}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50 disabled:text-gray-500"
+                      placeholder="VD: DS. Nguyễn Văn A" />
+                  </div>
                 </div>
               </div>
 

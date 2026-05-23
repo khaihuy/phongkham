@@ -164,6 +164,13 @@ model Clinic {
   logoUrl     String?
   website     String?
   licenseNo   String?
+  // Thông tin Nhà thuốc đính kèm — dùng cho đơn TPCN/TPBS, GPP, tem hộp...
+  pharmacyName       String?
+  pharmacyAddress    String?
+  pharmacyPhone      String?
+  pharmacyLicenseNo  String?  // Giấy chứng nhận đủ điều kiện kinh doanh thuốc
+  pharmacyManager    String?  // Dược sĩ phụ trách
+  pharmacyTaxCode    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
