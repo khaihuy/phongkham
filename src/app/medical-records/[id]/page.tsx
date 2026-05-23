@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity, Plus, Bell, Printer, CalendarDays } from 'lucide-react';
+import { ArrowLeft, Edit2, X, Save, Loader, AlertCircle, FileText, FlaskConical, ScanLine, CheckCircle, CreditCard, Activity, Plus, Bell, Printer, CalendarDays, Stethoscope, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from '@/components/ui/Modal';
 
@@ -695,6 +695,9 @@ export default function MedicalRecordDetailPage() {
         )}
       </div>
 
+      {/* Dịch vụ chỉ định */}
+      <MedicalRecordServicesSection recordId={id} />
+
       {/* Prescriptions */}
       {record.prescriptions && record.prescriptions.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
@@ -782,6 +785,223 @@ function InfoItem({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs font-medium text-gray-500">{label}</p>
       <p className="text-sm font-semibold text-gray-800 mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+// ─── Section: Dịch vụ chỉ định ───────────────────────────────
+
+const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
+  PENDING:     { label: 'Chờ',         cls: 'bg-gray-100 text-gray-700' },
+  IN_PROGRESS: { label: 'Đang làm',    cls: 'bg-amber-100 text-amber-700' },
+  COMPLETED:   { label: 'Đã xong',     cls: 'bg-green-100 text-green-700' },
+  SKIPPED:     { label: 'Bỏ qua',      cls: 'bg-red-100 text-red-600' },
+};
+
+const NEXT_STATUS: Record<string, string> = {
+  PENDING: 'IN_PROGRESS',
+  IN_PROGRESS: 'COMPLETED',
+  COMPLETED: 'PENDING',
+  SKIPPED: 'PENDING',
+};
+
+function MedicalRecordServicesSection({ recordId }: { recordId: string }) {
+  const qc = useQueryClient();
+  const [showAdd, setShowAdd] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [notes, setNotes] = useState('');
+
+  const { data: services = [], isLoading } = useQuery({
+    queryKey: ['mr-services', recordId],
+    queryFn: async () => {
+      const r = await fetch(`/api/medical-records/${recordId}/services`);
+      return (await r.json()).data ?? [];
+    },
+  });
+
+  const { data: catalog = [] } = useQuery({
+    queryKey: ['services-catalog'],
+    queryFn: async () => {
+      const r = await fetch('/api/services?pageSize=200');
+      return (await r.json()).data ?? [];
+    },
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['mr-services', recordId] });
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`/api/medical-records/${recordId}/services`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceId: selectedServiceId, quantity, notes: notes || undefined }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? 'Thêm thất bại'); }
+    },
+    onSuccess: () => {
+      invalidate();
+      setShowAdd(false); setSelectedServiceId(''); setQuantity(1); setNotes('');
+      toast.success('Đã thêm dịch vụ');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: any }) => {
+      const r = await fetch(`/api/medical-records/${recordId}/services/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? 'Cập nhật thất bại'); }
+    },
+    onSuccess: invalidate,
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const delMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await fetch(`/api/medical-records/${recordId}/services/${id}`, { method: 'DELETE' });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? 'Xóa thất bại'); }
+    },
+    onSuccess: () => { invalidate(); toast.success('Đã xóa dịch vụ'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  function move(item: any, direction: 'up' | 'down') {
+    const idx = services.findIndex((s: any) => s.id === item.id);
+    const target = direction === 'up' ? services[idx - 1] : services[idx + 1];
+    if (!target) return;
+    updateMutation.mutate({ id: item.id, body: { sequence: target.sequence } });
+  }
+
+  function toggleStatus(item: any) {
+    updateMutation.mutate({ id: item.id, body: { status: NEXT_STATUS[item.status] ?? 'PENDING' } });
+  }
+
+  const total = services.reduce((s: number, i: any) =>
+    i.status === 'SKIPPED' ? s : s + Number(i.unitPrice) * i.quantity, 0);
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Stethoscope className="w-5 h-5 text-indigo-600" />
+          <h2 className="font-semibold text-gray-800">
+            Dịch vụ chỉ định {services.length > 0 && <span className="text-gray-400 text-sm">({services.length})</span>}
+          </h2>
+        </div>
+        <div className="flex items-center gap-3">
+          {total > 0 && (
+            <span className="text-sm text-gray-600">
+              Tổng: <span className="font-bold text-indigo-700">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(total)}</span>
+            </span>
+          )}
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg font-medium"
+          >
+            <Plus className="w-3.5 h-3.5" /> Thêm dịch vụ
+          </button>
+        </div>
+      </div>
+
+      {isLoading && <Loader className="w-5 h-5 animate-spin text-gray-400 mx-auto" />}
+
+      {!isLoading && services.length === 0 && !showAdd && (
+        <p className="text-gray-400 text-sm text-center py-4">Chưa có dịch vụ chỉ định</p>
+      )}
+
+      {services.map((item: any, i: number) => (
+        <div key={item.id} className={`flex items-center gap-2 p-3 rounded-lg border ${item.status === 'COMPLETED' ? 'bg-green-50 border-green-200' : item.status === 'IN_PROGRESS' ? 'bg-amber-50 border-amber-200' : item.status === 'SKIPPED' ? 'bg-red-50 border-red-200 opacity-70' : 'bg-gray-50 border-gray-200'}`}>
+          {/* Sequence + arrows */}
+          <div className="flex flex-col items-center gap-0.5 mr-1">
+            <button onClick={() => move(item, 'up')} disabled={i === 0}
+              className="p-0.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ArrowUp className="w-3 h-3" />
+            </button>
+            <span className="text-xs font-bold text-indigo-700">{item.sequence}</span>
+            <button onClick={() => move(item, 'down')} disabled={i === services.length - 1}
+              className="p-0.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ArrowDown className="w-3 h-3" />
+            </button>
+          </div>
+
+          {/* Service info */}
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-900 text-sm truncate">{item.service.name}</p>
+            <p className="text-xs text-gray-500">
+              {item.service.code} · SL: {item.quantity} ×{' '}
+              {new Intl.NumberFormat('vi-VN').format(Number(item.unitPrice))}đ
+              {item.performer && <> · BS: {item.performer.fullName}</>}
+            </p>
+            {item.notes && <p className="text-xs text-gray-600 italic mt-0.5">{item.notes}</p>}
+          </div>
+
+          {/* Total */}
+          <div className="text-sm font-bold text-indigo-700 whitespace-nowrap">
+            {new Intl.NumberFormat('vi-VN').format(Number(item.unitPrice) * item.quantity)}đ
+          </div>
+
+          {/* Status pill (clickable) */}
+          <button
+            onClick={() => toggleStatus(item)}
+            className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_LABELS[item.status]?.cls}`}
+            title={`Đổi sang ${STATUS_LABELS[NEXT_STATUS[item.status]]?.label}`}
+          >
+            {STATUS_LABELS[item.status]?.label ?? item.status}
+          </button>
+
+          {/* Delete */}
+          <button onClick={() => { if (confirm('Xóa dịch vụ này?')) delMutation.mutate(item.id); }}
+            className="p-1 text-gray-400 hover:text-red-600">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
+
+      {/* Add form */}
+      {showAdd && (
+        <div className="border-2 border-dashed border-indigo-300 rounded-lg p-4 bg-indigo-50 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Dịch vụ *</label>
+            <select value={selectedServiceId} onChange={e => setSelectedServiceId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">— Chọn từ danh mục dịch vụ —</option>
+              {catalog.map((s: any) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.code}) — {new Intl.NumberFormat('vi-VN').format(Number(s.price))}đ
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Số lượng</label>
+              <input type="number" min={1} value={quantity}
+                onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Ghi chú (không bắt buộc)</label>
+              <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
+                placeholder="VD: ưu tiên làm trước"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => { setShowAdd(false); setSelectedServiceId(''); }}
+              className="px-4 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-white">
+              Hủy
+            </button>
+            <button onClick={() => addMutation.mutate()} disabled={!selectedServiceId || addMutation.isPending}
+              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium">
+              {addMutation.isPending ? 'Đang thêm...' : 'Thêm vào hồ sơ'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

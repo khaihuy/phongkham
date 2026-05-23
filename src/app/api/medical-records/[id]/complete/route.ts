@@ -20,6 +20,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
       labOrders: { include: { service: true } },
       imageOrders: { include: { service: true } },
       prescriptions: { include: { items: { include: { drug: true } } } },
+      services: { include: { service: true }, orderBy: { sequence: "asc" } },
     },
   })
 
@@ -62,6 +63,21 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
         totalPrice: Number(lab.service.price),
       })
     }
+  }
+
+  // 2b. Dịch vụ chỉ định trong hồ sơ (theo thứ tự sequence)
+  // Bỏ qua trạng thái SKIPPED
+  for (const svc of record.services) {
+    if (svc.status === "SKIPPED") continue
+    invoiceItems.push({
+      type: "SERVICE",
+      serviceId: svc.serviceId,
+      name: svc.service.name,
+      quantity: svc.quantity,
+      unitPrice: Number(svc.unitPrice),
+      discount: 0,
+      totalPrice: Number(svc.unitPrice) * svc.quantity,
+    })
   }
 
   // 3. Chẩn đoán hình ảnh
