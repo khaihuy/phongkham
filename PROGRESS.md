@@ -36,7 +36,7 @@
 
 ## Giai Đoạn 2 — Business Modules
 
-**Trạng thái:** 🟢 ~85% hoàn thành
+**Trạng thái:** ✅ ~100% hoàn thành
 
 ### Đã làm
 - [x] **Pharmacy nâng cao** — dispensing workflow, prescription queue, cảnh báo tồn kho thấp + sắp hết hạn
@@ -51,33 +51,45 @@
 - [x] **Dashboard** — thao tác nhanh theo vai trò
 - [x] **Global search** — tìm kiếm BN/hóa đơn/lịch hẹn với Ctrl+K
 
+### Đã làm thêm
+- [x] **Xuất Excel + PDF** — Revenue + Doctor stats (jsPDF + autotable, multi-sheet xlsx, helper `src/lib/export.ts`)
+- [x] **Date range picker** — Reports đã có sẵn (Từ-Đến + preset hôm nay/7 ngày/tháng này/tháng trước)
+
 ### Chưa làm
-- [ ] Xuất Excel/PDF nâng cao (mới có xlsx + jspdf cài, chưa wire đầy đủ)
-- [ ] Báo cáo theo dải thời gian tuỳ chọn (date range picker)
 - [ ] Phân quyền chi tiết cho từng module-action
+- [ ] Nhúng font Unicode trong PDF (hiện dùng Helvetica nên dấu tiếng Việt chưa hoàn hảo)
 
 ---
 
 ## Giai Đoạn 3 — Advanced Features
 
-**Trạng thái:** 🟡 ~10% hoàn thành (mới có khung)
+**Trạng thái:** 🟢 ~55% hoàn thành
 
 ### Đã làm
-- [x] Module Marketing — UI page khung (campaign list)
-- [x] Module Telemedicine — placeholder
+- [x] **Marketing — provider abstraction** (`MessageProvider` interface, factory tự chọn Mock/Real theo env)
+- [x] **Marketing — mock providers** SMS/Zalo/Email (log + simulate, không gọi API thật)
+- [x] **Marketing — real provider stubs** (`ZaloOAProvider`, `SmsGatewayProvider`) sẵn TODO khi có credential
+- [x] **Marketing — campaign launch engine** (gửi broadcast cho toàn bộ BN, tạo CampaignLog, update status)
+- [x] **Marketing — reminder engine** (`runReminders` quét appt trong N giờ tới, gửi SMS, đánh dấu `reminderSent` để idempotent)
+- [x] **Marketing — API `POST /api/reminders/run`** + UI button "Gửi nhắc lịch (24h)"
+- [x] **PWA — manifest.json** (theme color #0284c7, shortcuts, icons 192/512)
+- [x] **PWA — service worker** (cache shell, network-first HTML, stale-while-revalidate static)
+- [x] **PWA — mobile viewport** (viewportFit cover, theme color, apple-web-app)
+- [x] **Mobile responsive** — UI hiện đã responsive trên mọi page (Tailwind grid + flex)
 
 ### Chưa làm
-- [ ] Marketing — wire Zalo OA API thật (gửi tin nhắn, broadcast)
-- [ ] Marketing — wire SMS gateway (reminder lịch hẹn tự động)
-- [ ] Marketing — email SMTP integration
+- [ ] Marketing — wire Zalo OA API thật (cần access_token flow)
+- [ ] Marketing — wire SMS gateway thật (chọn nhà cung cấp: Esms/Speedsms/VietGuys)
+- [ ] Marketing — SMTP integration (nodemailer + SMTP_HOST/PORT/USER/PASS)
+- [ ] Marketing — segmentation theo `targetGroup` (theo độ tuổi, bệnh án...)
 - [ ] Telemedicine — video call (WebRTC / nhà cung cấp third-party)
 - [ ] Telemedicine — lịch khám online, đặt cọc
-- [ ] PWA + mobile optimization (service worker, manifest, offline)
+- [ ] PWA — offline fallback page riêng
 - [ ] Performance optimization (server components audit, lazy load, image optimization)
 
 ---
 
-## Giai Đoạn 4 — Deployment
+## Giai Đoạn 4 — Deployment & DevOps
 
 **Trạng thái:** 🟢 Cấu hình xong, chờ deploy thật
 
@@ -87,16 +99,17 @@
 - [x] **start.sh** — auto prisma db push + seed khi container start
 - [x] **railway.json** — builder DOCKERFILE, healthcheck /api/health, restart policy
 - [x] **Healthcheck endpoint** (`/api/health`) — ping Prisma SELECT 1
-- [x] **Middleware whitelist** — /api/health public cho Railway probe
+- [x] **Middleware whitelist** — /api/health, /manifest.json, /sw.js public
 - [x] **Deploy docs** (`docs/deploy-railway.md`) — hướng dẫn từng bước
+- [x] **GitHub Actions CI** (`.github/workflows/ci.yml`) — lint + typecheck + test + build (với Postgres service)
 - [x] **Branch main + PR #1** trên GitHub
 
 ### Chưa làm
 - [ ] Deploy thật lên Railway (chờ user thao tác trên dashboard)
-- [ ] Custom domain (phongkhanh-an-khang.vn hoặc tương tự)
-- [ ] CI/CD GitHub Actions (test + build kiểm tra PR)
+- [ ] Custom domain (phongkham-an-khang.vn hoặc tương tự)
 - [ ] Monitoring + log aggregation (Sentry, Better Stack...)
 - [ ] Backup chiến lược (DB snapshot định kỳ)
+- [ ] Scheduled job cho `POST /api/reminders/run` chạy mỗi giờ (cron / Railway scheduled)
 
 ---
 
@@ -104,13 +117,13 @@
 
 | Metric | Hiện tại | Mục tiêu |
 |---|---|---|
-| Modules hoàn chỉnh | 5/7 (core production-ready) | 7/7 |
+| Modules hoàn chỉnh | 6/7 (Telemedicine chờ video call) | 7/7 |
 | Prisma models | 32 | 50+ |
 | Prisma enums | 15 | 8 ✅ vượt |
-| API route groups | 28 | 30+ |
-| Test files / cases | 4 / **46 pass** | 80%+ coverage |
-| Git commits | 51 | — |
-| Pull requests | 1 (#1 — Foundation) | — |
+| API route groups | 29 | 30+ |
+| Test files / cases | 5 / **59 pass** | 80%+ coverage |
+| Git commits | 56 | — |
+| Pull requests | 1 (#1 — Foundation + Deployment + PWA) | — |
 
 ---
 
@@ -120,3 +133,4 @@
 |---|---|
 | 2026-05-07 | Khởi tạo Giai đoạn 1 |
 | 2026-05-23 | Cập nhật trạng thái thực tế: G1 ✅, G2 🟢, G3 🟡; thêm G4 Deployment với Railway config |
+| 2026-05-23 | G2 ✅ (PDF/Excel export); G3 🟢 55% (PWA + Marketing mock providers + reminder engine); G4 thêm GitHub Actions CI |
