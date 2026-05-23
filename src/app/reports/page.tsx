@@ -4,9 +4,9 @@ import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDashboard } from '@/hooks/use-dashboard';
-import { TrendingUp, FileText, Download, Loader, AlertCircle } from 'lucide-react';
+import { TrendingUp, FileText, Download, Loader, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfDay, subMonths } from 'date-fns';
-import * as XLSX from 'xlsx';
+import { exportExcel, exportPdf } from '@/lib/export';
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', notation: 'compact' }).format(v);
@@ -86,9 +86,8 @@ export default function ReportsPage() {
     _raw: d,
   }));
 
-  function exportExcel() {
+  function exportRevenueExcel() {
     if (!rawRevenueData.length) return;
-
     const rows = rawRevenueData.map((d: any) => ({
       'Ngày': d.date,
       'Tổng tiền': Number(d.total ?? (Number(d.paid) + Number(d.pending))),
@@ -96,11 +95,73 @@ export default function ReportsPage() {
       'Chờ thu': Number(d.pending),
       'Số hóa đơn': Number(d.invoiceCount ?? 0),
     }));
+    exportExcel(`bao-cao-doanh-thu-${appliedFrom}-${appliedTo}.xlsx`, [
+      { name: 'Doanh thu', rows },
+    ]);
+  }
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Doanh thu');
-    XLSX.writeFile(wb, `bao-cao-doanh-thu-${appliedFrom}-${appliedTo}.xlsx`);
+  function exportRevenuePdf() {
+    if (!rawRevenueData.length) return;
+    const body = rawRevenueData.map((d: any) => [
+      d.date,
+      formatFull(Number(d.total ?? (Number(d.paid) + Number(d.pending)))),
+      formatFull(Number(d.paid)),
+      formatFull(Number(d.pending)),
+      String(d.invoiceCount ?? 0),
+    ]);
+    const totalPaid = rawRevenueData.reduce((s: number, d: any) => s + Number(d.paid), 0);
+    const totalPending = rawRevenueData.reduce((s: number, d: any) => s + Number(d.pending), 0);
+    const totalInvoices = rawRevenueData.reduce((s: number, d: any) => s + Number(d.invoiceCount ?? 0), 0);
+    exportPdf(`bao-cao-doanh-thu-${appliedFrom}-${appliedTo}.pdf`, {
+      title: 'Bao cao doanh thu',
+      subtitle: `Tu ${appliedFrom} den ${appliedTo}`,
+      orientation: 'l',
+      tables: [{
+        head: ['Ngay', 'Tong tien', 'Da thu', 'Cho thu', 'So hoa don'],
+        body,
+        foot: [['Tong cong', formatFull(totalPaid + totalPending), formatFull(totalPaid), formatFull(totalPending), String(totalInvoices)]],
+      }],
+    });
+  }
+
+  function exportDoctorsExcel() {
+    if (!doctorStats || doctorStats.length === 0) return;
+    const rows = doctorStats.map((d: any) => ({
+      'Bác sĩ': d.name,
+      'Chuyên khoa': d.specialty,
+      'Tổng lịch hẹn': d.totalAppointments,
+      'Hoàn thành': d.completed,
+      'Tỷ lệ hoàn thành': d.totalAppointments > 0 ? `${Math.round(d.completed/d.totalAppointments*100)}%` : '—',
+      'Doanh thu (VND)': Number(d.revenue),
+    }));
+    exportExcel(`thong-ke-bac-si-${appliedFrom}-${appliedTo}.xlsx`, [
+      { name: 'Bác sĩ', rows },
+    ]);
+  }
+
+  function exportDoctorsPdf() {
+    if (!doctorStats || doctorStats.length === 0) return;
+    const body = doctorStats.map((d: any) => [
+      d.name,
+      d.specialty,
+      String(d.totalAppointments),
+      String(d.completed),
+      d.totalAppointments > 0 ? `${Math.round(d.completed/d.totalAppointments*100)}%` : '-',
+      formatFull(Number(d.revenue)),
+    ]);
+    const totalAppointments = doctorStats.reduce((s: number, d: any) => s + d.totalAppointments, 0);
+    const totalCompleted = doctorStats.reduce((s: number, d: any) => s + d.completed, 0);
+    const totalRevenue = doctorStats.reduce((s: number, d: any) => s + Number(d.revenue), 0);
+    exportPdf(`thong-ke-bac-si-${appliedFrom}-${appliedTo}.pdf`, {
+      title: 'Thong ke theo bac si',
+      subtitle: `Tu ${appliedFrom} den ${appliedTo}`,
+      orientation: 'l',
+      tables: [{
+        head: ['Bac si', 'Chuyen khoa', 'Tong lich hen', 'Hoan thanh', 'Ty le', 'Doanh thu'],
+        body,
+        foot: [['Tong cong', '', String(totalAppointments), String(totalCompleted), totalAppointments > 0 ? `${Math.round(totalCompleted/totalAppointments*100)}%` : '-', formatFull(totalRevenue)]],
+      }],
+    });
   }
 
   if (isLoading) return (
@@ -126,13 +187,37 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Báo cáo</h1>
-        {revenueChartData.length > 0 && (
-          <button
-            onClick={exportExcel}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 font-medium"
-          >
-            <Download className="w-4 h-4" /> Xuất Excel
-          </button>
+        {tab === 'revenue' && revenueChartData.length > 0 && (
+          <div className="flex gap-2">
+            <button
+              onClick={exportRevenueExcel}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 font-medium"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Excel
+            </button>
+            <button
+              onClick={exportRevenuePdf}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 font-medium"
+            >
+              <FileText className="w-4 h-4 text-red-600" /> PDF
+            </button>
+          </div>
+        )}
+        {tab === 'doctors' && doctorStats && doctorStats.length > 0 && (
+          <div className="flex gap-2">
+            <button
+              onClick={exportDoctorsExcel}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 font-medium"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Excel
+            </button>
+            <button
+              onClick={exportDoctorsPdf}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 font-medium"
+            >
+              <FileText className="w-4 h-4 text-red-600" /> PDF
+            </button>
+          </div>
         )}
       </div>
 
