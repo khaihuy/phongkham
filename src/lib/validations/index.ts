@@ -203,6 +203,8 @@ export const createDrugSchema = z.object({
   registrationNo: z.string().optional(),
   requirePrescription: z.boolean().default(false),
   minStock: z.number().int().nonnegative().default(10),
+  isFeatured: z.boolean().optional(),
+  featuredOrder: z.number().int().optional(),
 })
 
 export const updateDrugSchema = createDrugSchema.partial()

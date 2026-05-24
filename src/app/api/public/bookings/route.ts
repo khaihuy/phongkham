@@ -69,8 +69,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
       scheduledTime: input.scheduledTime,
       status: "PENDING",
       type: "GENERAL",
+      source: "ONLINE",
       chiefComplaint: input.chiefComplaint,
-      notes: input.notes ? `[Online] ${input.notes}` : "[Đặt online — chờ lễ tân xác nhận]",
+      notes: input.notes ?? null,
     },
     select: { id: true, appointmentCode: true, scheduledDate: true, scheduledTime: true },
   })

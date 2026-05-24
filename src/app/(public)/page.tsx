@@ -22,22 +22,45 @@ function fmtVND(n: number | null) {
 
 export default async function HomePage() {
   // SSR — server components: lấy data trực tiếp từ Prisma
-  const [drugs, doctors, branches] = await Promise.all([
-    prisma.drug.findMany({
-      where: { isActive: true },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        unit: true,
-        strength: true,
-        manufacturer: true,
-        productType: true,
-        inventory: { select: { sellPrice: true, quantity: true }, take: 1, orderBy: { createdAt: "desc" } },
-      },
-    }),
+  // Featured drugs: ưu tiên isFeatured=true, sort theo featuredOrder DESC.
+  // Fallback: nếu không có featured, lấy 8 sản phẩm active mới nhất.
+  const featuredFirst = await prisma.drug.findMany({
+    where: { isActive: true, isFeatured: true },
+    orderBy: [{ featuredOrder: "desc" }, { createdAt: "desc" }],
+    take: 8,
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      unit: true,
+      strength: true,
+      manufacturer: true,
+      productType: true,
+      inventory: { select: { sellPrice: true, quantity: true }, take: 1, orderBy: { createdAt: "desc" } },
+    },
+  });
+  const drugsPromise = featuredFirst.length >= 4
+    ? Promise.resolve(featuredFirst)
+    : prisma.drug.findMany({
+        where: { isActive: true },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          unit: true,
+          strength: true,
+          manufacturer: true,
+          productType: true,
+          inventory: { select: { sellPrice: true, quantity: true }, take: 1, orderBy: { createdAt: "desc" } },
+        },
+      });
+
+  const settingsPromise = prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+
+  const [drugs, doctors, branches, settings, latestPosts] = await Promise.all([
+    drugsPromise,
     prisma.doctor.findMany({
       where: { isActive: true },
       take: 4,
@@ -54,6 +77,13 @@ export default async function HomePage() {
       take: 3,
       select: { id: true, name: true, address: true, phone: true },
     }),
+    settingsPromise,
+    prisma.post.findMany({
+      where: { status: "PUBLISHED", deletedAt: null },
+      orderBy: { publishedAt: "desc" },
+      take: 3,
+      select: { id: true, slug: true, title: true, excerpt: true, coverImageUrl: true, tag: true, publishedAt: true },
+    }),
   ]);
 
   const featured = drugs.map((d) => ({
@@ -64,6 +94,19 @@ export default async function HomePage() {
 
   return (
     <>
+      {/* Promo banner */}
+      {settings?.promoBannerText && (
+        <div className="bg-accent-500 text-white text-center text-sm py-2 px-4">
+          {settings.promoBannerUrl ? (
+            <Link href={settings.promoBannerUrl} className="hover:underline">
+              🎉 {settings.promoBannerText}
+            </Link>
+          ) : (
+            <>🎉 {settings.promoBannerText}</>
+          )}
+        </div>
+      )}
+
       {/* Hero */}
       <section className="bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 text-white">
         <div className="max-w-8xl mx-auto px-4 py-12 md:py-16 grid md:grid-cols-2 gap-8 items-center">
@@ -72,18 +115,17 @@ export default async function HomePage() {
               🏥 Phòng khám đa khoa An Khang
             </p>
             <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-4">
-              Chăm sóc sức khỏe<br />
-              <span className="text-yellow-300">toàn diện cho gia đình</span>
+              {settings?.heroTitle ?? "Chăm sóc sức khỏe toàn diện cho gia đình"}
             </h1>
             <p className="text-brand-50 text-lg mb-6">
-              Đặt lịch khám online · Đội ngũ bác sĩ chuyên môn cao · Hơn 1000+ bệnh nhân tin tưởng mỗi tháng
+              {settings?.heroSubtitle ?? "Đặt lịch khám online · Đội ngũ bác sĩ chuyên môn cao"}
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/dat-lich"
+                href={settings?.heroCtaUrl ?? "/dat-lich"}
                 className="flex items-center gap-2 px-6 py-3 bg-accent-500 hover:bg-accent-600 rounded-full font-semibold shadow-lg"
               >
-                <CalendarDays className="w-5 h-5" /> Đặt lịch khám ngay
+                <CalendarDays className="w-5 h-5" /> {settings?.heroCtaText ?? "Đặt lịch khám ngay"}
               </Link>
               <Link
                 href="/san-pham"
@@ -246,6 +288,45 @@ export default async function HomePage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Blog */}
+      {latestPosts.length > 0 && (
+        <section className="max-w-8xl mx-auto px-4 mt-12">
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900">Cẩm nang sức khỏe</h2>
+              <p className="text-sm text-gray-500 mt-1">Bài viết & lời khuyên từ bác sĩ</p>
+            </div>
+            <Link href="/cam-nang" className="text-sm font-medium text-brand-700 flex items-center gap-1">
+              Xem tất cả <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            {latestPosts.map((post) => (
+              <Link
+                key={post.id}
+                href={`/cam-nang/${post.slug}`}
+                className="bg-white rounded-xl shadow-product hover:shadow-card transition overflow-hidden group"
+              >
+                <div className="aspect-[16/10] bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center overflow-hidden">
+                  {post.coverImageUrl ? (
+                    <img src={post.coverImageUrl} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  ) : (
+                    <span className="text-brand-400 text-4xl">📚</span>
+                  )}
+                </div>
+                <div className="p-4">
+                  {post.tag && <span className="inline-block px-2 py-0.5 bg-brand-50 text-brand-700 text-xs rounded">{post.tag}</span>}
+                  <h3 className="font-semibold text-gray-900 mt-2 line-clamp-2 min-h-[3rem] group-hover:text-brand-700">
+                    {post.title}
+                  </h3>
+                  {post.excerpt && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{post.excerpt}</p>}
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       )}

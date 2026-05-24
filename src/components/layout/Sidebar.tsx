@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   ConciergeBell,
   Wrench,
+  Globe,
   Monitor,
 } from 'lucide-react';
 
@@ -42,6 +43,7 @@ const navItems = [
   { href: '/billing', label: 'Thanh toán', icon: CreditCard },
   { href: '/reports', label: 'Báo cáo', icon: BarChart3 },
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
+  { href: '/website', label: 'Website', icon: Globe },
   { href: '/audit-log', label: 'Nhật ký', icon: ShieldCheck },
   { href: '/settings/users', label: 'Người dùng', icon: UserCog },
   { href: '/settings', label: 'Cài đặt', icon: Settings },

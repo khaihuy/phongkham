@@ -1,33 +1,33 @@
 import Link from "next/link";
+import { prisma } from "@/db/prisma";
 import { BookOpen, ArrowRight } from "lucide-react";
 
-const SAMPLE_POSTS = [
-  {
-    slug: "cach-uong-thuoc-dung-cach",
-    title: "Cách uống thuốc đúng cách để đạt hiệu quả tối đa",
-    excerpt: "Hướng dẫn thời điểm uống thuốc, tương tác với thức ăn và những điều cần tránh.",
-    tag: "Thuốc",
-    date: "2026-05-20",
-  },
-  {
-    slug: "vitamin-cho-tre-em",
-    title: "Vitamin cần thiết cho trẻ em theo từng độ tuổi",
-    excerpt: "Bảng tổng hợp vitamin và khoáng chất cần bổ sung cho trẻ 0-12 tuổi.",
-    tag: "Mẹ & Bé",
-    date: "2026-05-18",
-  },
-  {
-    slug: "cao-huyet-ap",
-    title: "Cao huyết áp: nguyên nhân và phòng ngừa",
-    excerpt: "Các yếu tố nguy cơ và biện pháp phòng tránh tăng huyết áp ở người lớn.",
-    tag: "Bệnh thường gặp",
-    date: "2026-05-15",
-  },
-];
+export const dynamic = "force-dynamic";
 
-export default function CamNangPage() {
+function fmtDate(d: Date | string) {
+  return new Date(d).toLocaleDateString("vi-VN");
+}
+
+export default async function CamNangPage() {
+  const posts = await prisma.post.findMany({
+    where: { status: "PUBLISHED", deletedAt: null },
+    orderBy: { publishedAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      excerpt: true,
+      coverImageUrl: true,
+      tag: true,
+      publishedAt: true,
+      viewCount: true,
+      author: { select: { fullName: true } },
+    },
+  });
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center">
           <BookOpen className="w-6 h-6 text-brand-700" />
@@ -38,39 +38,49 @@ export default function CamNangPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-5">
-        {SAMPLE_POSTS.map((post) => (
-          <article
-            key={post.slug}
-            className="bg-white rounded-xl shadow-product hover:shadow-card transition overflow-hidden"
-          >
-            <div className="aspect-[16/10] bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center">
-              <BookOpen className="w-12 h-12 text-brand-400" />
-            </div>
-            <div className="p-4">
-              <span className="inline-block px-2 py-0.5 bg-brand-50 text-brand-700 text-xs rounded">
-                {post.tag}
-              </span>
-              <h2 className="font-bold text-gray-900 mt-2 line-clamp-2 min-h-[3rem]">
-                {post.title}
-              </h2>
-              <p className="text-sm text-gray-500 mt-1.5 line-clamp-2">{post.excerpt}</p>
-              <Link
-                href={`/cam-nang/${post.slug}`}
-                className="mt-3 inline-flex items-center gap-1 text-sm text-brand-700 font-medium"
-              >
-                Đọc thêm <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      <div className="text-center mt-12 p-8 bg-brand-50 rounded-2xl">
-        <p className="text-gray-700">
-          📝 Phần cẩm nang sẽ được mở rộng với CMS để bác sĩ đăng bài trực tiếp.
-        </p>
-      </div>
+      {posts.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <BookOpen className="w-16 h-16 mx-auto opacity-30 mb-3" />
+          <p>Chưa có bài viết nào</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-5">
+          {posts.map((post) => (
+            <Link
+              key={post.id}
+              href={`/cam-nang/${post.slug}`}
+              className="bg-white rounded-xl shadow-product hover:shadow-card transition overflow-hidden group"
+            >
+              <div className="aspect-[16/10] bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center overflow-hidden">
+                {post.coverImageUrl ? (
+                  <img src={post.coverImageUrl} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                ) : (
+                  <BookOpen className="w-12 h-12 text-brand-400" />
+                )}
+              </div>
+              <div className="p-4">
+                {post.tag && (
+                  <span className="inline-block px-2 py-0.5 bg-brand-50 text-brand-700 text-xs rounded">
+                    {post.tag}
+                  </span>
+                )}
+                <h2 className="font-bold text-gray-900 mt-2 line-clamp-2 min-h-[3rem] group-hover:text-brand-700">
+                  {post.title}
+                </h2>
+                {post.excerpt && (
+                  <p className="text-sm text-gray-500 mt-1.5 line-clamp-2">{post.excerpt}</p>
+                )}
+                <div className="flex items-center justify-between mt-3 text-xs text-gray-400">
+                  <span>{fmtDate(post.publishedAt!)}</span>
+                  <span className="flex items-center gap-1">
+                    {post.viewCount} lượt xem <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

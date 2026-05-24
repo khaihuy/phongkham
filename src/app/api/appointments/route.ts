@@ -22,6 +22,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const statusParam = searchParams.get("status")
   const doctorId = searchParams.get("doctorId")
   const patientId = searchParams.get("patientId")
+  const source = searchParams.get("source")
   const dateFrom = searchParams.get("dateFrom")
   const dateTo = searchParams.get("dateTo")
   const { page, pageSize, skip } = getPaginationParams({
@@ -38,6 +39,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         ...(status && { status }),
         ...(doctorId && { doctorId }),
         ...(patientId && { patientId }),
+        ...(source && { source: source as any }),
         ...(dateFrom && { scheduledDate: { gte: new Date(dateFrom) } }),
         ...(dateTo && {
           scheduledDate: {
@@ -61,6 +63,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         ...(status && { status }),
         ...(doctorId && { doctorId }),
         ...(patientId && { patientId }),
+        ...(source && { source: source as any }),
         ...(dateFrom && { scheduledDate: { gte: new Date(dateFrom) } }),
         ...(dateTo && {
           scheduledDate: {

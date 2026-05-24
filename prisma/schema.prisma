@@ -230,6 +230,7 @@ model User {
   auditLogs     AuditLog[]
   createdInvoices Invoice[] @relation("InvoiceCreatedBy")
   performedMedicalServices MedicalRecordService[] @relation("PerformedMedicalServices")
+  posts         Post[] @relation("PostAuthor")
 }
 
 model AuditLog {
@@ -382,6 +383,13 @@ model PatientVital {
 // MODULE: APPOINTMENT
 // ─────────────────────────────────────────
 
+enum AppointmentSource {
+  WALK_IN     // Khách đến trực tiếp
+  PHONE       // Đặt qua điện thoại
+  ONLINE      // Đặt online qua website
+  REFERRAL    // Bệnh nhân giới thiệu
+}
+
 model Appointment {
   id              String            @id @default(cuid())
   appointmentCode String            @unique
@@ -392,6 +400,7 @@ model Appointment {
   specialtyId     String?
   type            AppointmentType   @default(GENERAL)
   status          AppointmentStatus @default(PENDING)
+  source          AppointmentSource @default(WALK_IN)
   scheduledDate   DateTime
   scheduledTime   String
   queueNumber     Int?
@@ -560,6 +569,8 @@ model Drug {
   requirePrescription Boolean @default(false)
   minStock        Int      @default(10)
   isActive        Boolean  @default(true)
+  isFeatured      Boolean  @default(false)  // Hiển thị trên trang chủ
+  featuredOrder   Int      @default(0)       // Thứ tự sắp xếp (lớn = ưu tiên)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -807,4 +818,57 @@ model Telemedicine {
   updatedAt     DateTime           @updatedAt
 
   appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// ─────────────────────────────────────────
+// MODULE: WEBSITE / CMS
+// ─────────────────────────────────────────
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Post {
+  id              String     @id @default(cuid())
+  slug            String     @unique
+  title           String
+  excerpt         String?
+  content         String     // Markdown / HTML
+  coverImageUrl   String?
+  tag             String?    // VD: Thuốc / Bệnh thường gặp / Mẹ & Bé
+  status          PostStatus @default(DRAFT)
+  seoTitle        String?
+  seoDescription  String?
+  publishedAt     DateTime?
+  authorId        String?
+  viewCount       Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  author User? @relation("PostAuthor", fields: [authorId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([tag])
+}
+
+// Singleton — chỉ có 1 row, dùng cho cấu hình website public
+model SiteSettings {
+  id              String   @id @default("singleton")
+  heroTitle       String   @default("Chăm sóc sức khỏe toàn diện cho gia đình")
+  heroSubtitle    String   @default("Đặt lịch khám online · Đội ngũ bác sĩ chuyên môn cao")
+  heroCtaText     String   @default("Đặt lịch khám ngay")
+  heroCtaUrl      String   @default("/dat-lich")
+  hotline         String   @default("1800 6928")
+  promoBannerText String?
+  promoBannerUrl  String?
+  facebookUrl     String?
+  youtubeUrl      String?
+  zaloUrl         String?
+  seoTitle        String?
+  seoDescription  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
