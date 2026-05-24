@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -11,7 +11,7 @@ function fmtVND(n: number | null) {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 }
 
-export default function CatalogPage() {
+function CatalogInner() {
   const searchParams = useSearchParams();
   const initialType = searchParams.get("productType") || "";
   const initialSearch = searchParams.get("search") || "";
@@ -165,5 +165,17 @@ export default function CatalogPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CatalogPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center py-20">
+        <Loader className="w-8 h-8 animate-spin text-brand-600" />
+      </div>
+    }>
+      <CatalogInner />
+    </Suspense>
   );
 }
