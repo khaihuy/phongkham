@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Search, Phone, ShoppingCart, User, MapPin, Menu, X, ChevronDown } from "lucide-react";
 import MegaMenu from "./MegaMenu";
+import type { SiteContext } from "./PublicShell";
 
 const NAV = [
   { href: "/dat-lich", label: "Đặt lịch khám" },
@@ -12,9 +13,15 @@ const NAV = [
   { href: "/cam-nang", label: "Cẩm nang" },
 ];
 
-export default function PublicHeader() {
+export default function PublicHeader({ site }: { site: SiteContext }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Đọc từ DB — fallback nếu chưa cấu hình
+  const clinicName = site.clinic?.name ?? "Phòng Khám";
+  const shortName = clinicName.replace(/^Phòng Khám\s*(Đa Khoa\s*)?/i, "").trim() || clinicName;
+  const initials = shortName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "PK";
+  const hotline = site.settings?.hotline ?? site.clinic?.phone ?? "—";
 
   return (
     <header className="sticky top-0 z-40 bg-white shadow-sm">
@@ -23,12 +30,12 @@ export default function PublicHeader() {
         <div className="max-w-8xl mx-auto px-4 py-1.5 flex items-center justify-between">
           <span className="flex items-center gap-1.5">
             <Phone className="w-3 h-3" /> Hotline 24/7:{" "}
-            <strong>1800 6928</strong>
+            <strong>{hotline}</strong>
           </span>
           <div className="flex items-center gap-4 text-white/90">
             <Link href="/tra-cuu-don" className="hover:text-white">Tra cứu đơn</Link>
             <Link href="/uu-dai" className="hover:text-white">Ưu đãi</Link>
-            <Link href="/he-thong" className="hover:text-white">Hệ thống chi nhánh</Link>
+            <Link href="/chi-nhanh" className="hover:text-white">Hệ thống chi nhánh</Link>
           </div>
         </div>
       </div>
@@ -39,11 +46,11 @@ export default function PublicHeader() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-              AK
+              {initials}
             </div>
             <div className="hidden sm:block">
-              <p className="font-bold text-brand-700 text-lg leading-tight">An Khang</p>
-              <p className="text-[10px] text-gray-500 leading-tight">Phòng khám đa khoa</p>
+              <p className="font-bold text-brand-700 text-lg leading-tight">{shortName}</p>
+              <p className="text-[10px] text-gray-500 leading-tight">{clinicName.startsWith("Phòng") ? clinicName : "Phòng khám"}</p>
             </div>
           </Link>
 

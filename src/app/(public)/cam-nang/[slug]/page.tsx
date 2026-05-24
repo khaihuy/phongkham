@@ -27,12 +27,17 @@ function fmtDate(d: Date | string) {
 }
 
 export default async function PostDetailPage({ params }: { params: { slug: string } }) {
-  const post = await prisma.post.findUnique({
-    where: { slug: params.slug },
-    include: { author: { select: { fullName: true } } },
-  });
+  const [post, clinic] = await Promise.all([
+    prisma.post.findUnique({
+      where: { slug: params.slug },
+      include: { author: { select: { fullName: true } } },
+    }),
+    prisma.clinic.findFirst({ select: { name: true } }),
+  ]);
 
   if (!post || post.status !== "PUBLISHED" || post.deletedAt) notFound();
+
+  const shortName = clinic?.name?.replace(/^Phòng Khám\s*(Đa Khoa\s*)?/i, "").trim() || clinic?.name || "phòng khám";
 
   // Increment view count (fire-and-forget)
   prisma.post.update({
@@ -84,7 +89,7 @@ export default async function PostDetailPage({ params }: { params: { slug: strin
       <div className="mt-12 p-6 bg-brand-50 rounded-xl text-center">
         <BookOpen className="w-8 h-8 text-brand-700 mx-auto mb-2" />
         <p className="font-semibold text-gray-900 mb-1">Cần tư vấn thêm?</p>
-        <p className="text-sm text-gray-600 mb-3">Đặt lịch khám với bác sĩ chuyên khoa của An Khang</p>
+        <p className="text-sm text-gray-600 mb-3">Đặt lịch khám với bác sĩ chuyên khoa của {shortName}</p>
         <Link
           href="/dat-lich"
           className="inline-block px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium text-sm"

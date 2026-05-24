@@ -58,8 +58,11 @@ export default async function HomePage() {
       });
 
   const settingsPromise = prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+  const clinicPromise = prisma.clinic.findFirst({
+    select: { name: true, phone: true, address: true },
+  });
 
-  const [drugs, doctors, branches, settings, latestPosts] = await Promise.all([
+  const [drugs, doctors, branches, settings, clinic, latestPosts] = await Promise.all([
     drugsPromise,
     prisma.doctor.findMany({
       where: { isActive: true },
@@ -78,6 +81,7 @@ export default async function HomePage() {
       select: { id: true, name: true, address: true, phone: true },
     }),
     settingsPromise,
+    clinicPromise,
     prisma.post.findMany({
       where: { status: "PUBLISHED", deletedAt: null },
       orderBy: { publishedAt: "desc" },
@@ -112,7 +116,7 @@ export default async function HomePage() {
         <div className="max-w-8xl mx-auto px-4 py-12 md:py-16 grid md:grid-cols-2 gap-8 items-center">
           <div>
             <p className="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-medium mb-4">
-              🏥 Phòng khám đa khoa An Khang
+              🏥 {clinic?.name ?? "Phòng khám đa khoa"}
             </p>
             <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-4">
               {settings?.heroTitle ?? "Chăm sóc sức khỏe toàn diện cho gia đình"}
