@@ -9,6 +9,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Brand color — phong cách Long Châu (xanh dương đậm chủ đạo)
+        brand: {
+          50:  "#eef4ff",
+          100: "#dbe7ff",
+          200: "#bcd2ff",
+          300: "#8db3ff",
+          400: "#5a8cff",
+          500: "#3066f4",
+          600: "#1250DC",
+          700: "#0e3eb0",
+          800: "#0f3486",
+          900: "#0f2d6c",
+        },
+        accent: {
+          50:  "#fff1f1",
+          100: "#ffdfdf",
+          500: "#e03b3b",
+          600: "#c61d1d",
+        },
         primary: {
           50: "#f0f9ff",
           100: "#e0f2fe",
@@ -39,6 +58,10 @@ const config: Config = {
       boxShadow: {
         card: "0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1)",
         modal: "0 20px 60px -15px rgba(0,0,0,0.3)",
+        product: "0 2px 8px rgba(0,0,0,0.04)",
+      },
+      maxWidth: {
+        "8xl": "88rem",
       },
     },
   },

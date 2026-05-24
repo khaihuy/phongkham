@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/', label: 'Tổng quan', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
   { href: '/queue', label: 'Phòng chờ', icon: ConciergeBell },
   { href: '/queue/display', label: 'Màn hình gọi số', icon: Monitor },
   { href: '/patients', label: 'Bệnh nhân', icon: Users },
@@ -120,8 +120,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             const Icon = item.icon;
             const isActive = item.href === '/settings'
               ? pathname === '/settings'
-              : item.href === '/'
-                ? pathname === '/'
+              : item.href === '/dashboard'
+                ? pathname === '/dashboard'
                 : pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link

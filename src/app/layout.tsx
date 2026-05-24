@@ -2,17 +2,16 @@ import './globals.css';
 import { SessionProvider } from 'next-auth/react';
 import { ReactNode } from 'react';
 import type { Viewport } from 'next';
-import LayoutClient from './layout-client';
 import PWARegister from '@/components/PWARegister';
 
 export const metadata = {
-  title: 'Phòng Khám CRM',
-  description: 'Hệ thống quản lý phòng khám tư',
+  title: 'Phòng Khám An Khang — Chăm sóc sức khỏe toàn diện',
+  description: 'Phòng khám đa khoa An Khang — đặt lịch khám, mua thuốc & TPCN, tư vấn online. Đội ngũ bác sĩ chuyên môn cao, dịch vụ chu đáo.',
   manifest: '/manifest.json',
-  applicationName: 'Phòng Khám CRM',
+  applicationName: 'Phòng Khám An Khang',
   appleWebApp: {
     capable: true,
-    title: 'PhongKham',
+    title: 'An Khang',
     statusBarStyle: 'default' as const,
   },
   icons: {
@@ -25,7 +24,7 @@ export const metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0284c7',
+  themeColor: '#1250DC',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -38,12 +37,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
-      <body>
-        <SessionProvider>
-          <LayoutClient>{children}</LayoutClient>
-        </SessionProvider>
+      <body className="font-sans antialiased">
+        <SessionProvider>{children}</SessionProvider>
         <PWARegister />
       </body>
     </html>
