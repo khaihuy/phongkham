@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { CalendarDays, Phone, User, CheckCircle, Stethoscope, Loader, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { doctorAvatarByIndex } from "@/lib/public-images";
 
 interface Doctor {
   id: string;
@@ -141,7 +142,7 @@ export default function BookingPage() {
           <div className="bg-white rounded-xl border border-gray-100 p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Chọn bác sĩ</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {doctors.map((d) => (
+              {doctors.map((d, i) => (
                 <button
                   key={d.id}
                   onClick={() => setSelectedDoctor(d)}
@@ -152,8 +153,12 @@ export default function BookingPage() {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Stethoscope className="w-5 h-5 text-brand-600" />
+                    <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-brand-100">
+                      <img
+                        src={doctorAvatarByIndex(i)}
+                        alt={d.user.fullName}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900">

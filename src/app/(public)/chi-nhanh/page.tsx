@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/db/prisma";
 import { MapPin, Phone, ArrowRight, Clock } from "lucide-react";
+import { IMG } from "@/lib/public-images";
 
 export const dynamic = "force-dynamic";
 
@@ -39,37 +40,40 @@ export default async function BranchesPage() {
         {branches.map((b) => (
           <div
             key={b.id}
-            className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-card hover:border-brand-300 transition"
+            className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-card hover:border-brand-300 transition"
           >
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 bg-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-5 h-5 text-brand-700" />
+            <div className="aspect-[16/9] overflow-hidden relative">
+              <img
+                src={IMG.branchExterior}
+                alt={b.name}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+              {b.isMain && (
+                <span className="absolute top-3 left-3 px-2 py-0.5 bg-amber-500 text-white text-xs font-medium rounded shadow">
+                  Trụ sở chính
+                </span>
+              )}
+            </div>
+            <div className="p-5">
+              <h3 className="font-bold text-gray-900">{b.name}</h3>
+              <p className="text-sm text-gray-600 mt-1 flex items-start gap-1.5">
+                <MapPin className="w-4 h-4 text-brand-700 mt-0.5 flex-shrink-0" /> {b.address}
+              </p>
+              <div className="mt-3 space-y-1 text-sm">
+                <a href={`tel:${b.phone}`} className="flex items-center gap-1.5 text-brand-700 hover:text-brand-800">
+                  <Phone className="w-3.5 h-3.5" /> {b.phone}
+                </a>
+                <p className="flex items-center gap-1.5 text-gray-500">
+                  <Clock className="w-3.5 h-3.5" /> 7h00 – 21h00 (Thứ 2 – CN)
+                </p>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-gray-900">{b.name}</h3>
-                  {b.isMain && (
-                    <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded">
-                      Trụ sở chính
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mt-1">{b.address}</p>
-                <div className="mt-3 space-y-1 text-sm">
-                  <a href={`tel:${b.phone}`} className="flex items-center gap-1.5 text-brand-700 hover:text-brand-800">
-                    <Phone className="w-3.5 h-3.5" /> {b.phone}
-                  </a>
-                  <p className="flex items-center gap-1.5 text-gray-500">
-                    <Clock className="w-3.5 h-3.5" /> 7h00 – 21h00 (Thứ 2 – CN)
-                  </p>
-                </div>
-                <Link
-                  href={`/dat-lich`}
-                  className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800"
-                >
-                  Đặt lịch khám tại đây <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
+              <Link
+                href={`/dat-lich`}
+                className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800"
+              >
+                Đặt lịch khám tại đây <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
         ))}

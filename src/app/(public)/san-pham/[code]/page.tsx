@@ -2,6 +2,7 @@ import { prisma } from "@/db/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Pill, ArrowLeft, ShoppingCart, ShieldAlert, Package } from "lucide-react";
+import { productImageByType } from "@/lib/public-images";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +52,12 @@ export default async function ProductDetailPage({ params }: { params: { code: st
 
       <div className="grid md:grid-cols-2 gap-8">
         {/* Image */}
-        <div className="bg-white rounded-2xl shadow-product p-8 flex items-center justify-center aspect-square">
-          <Pill className="w-40 h-40 text-brand-300" />
+        <div className="bg-white rounded-2xl shadow-product overflow-hidden aspect-square">
+          <img
+            src={productImageByType(drug.productType)}
+            alt={drug.name}
+            className="w-full h-full object-cover"
+          />
         </div>
 
         {/* Info */}

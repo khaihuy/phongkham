@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/db/prisma";
 import { ArrowLeft, BookOpen, Eye, Calendar } from "lucide-react";
 import type { Metadata } from "next";
+import { blogCoverByTag } from "@/lib/public-images";
 
 export const dynamic = "force-dynamic";
 
@@ -73,9 +74,11 @@ export default async function PostDetailPage({ params }: { params: { slug: strin
         </span>
       </div>
 
-      {post.coverImageUrl && (
-        <img src={post.coverImageUrl} alt={post.title} className="w-full h-auto rounded-xl mt-6 object-cover" />
-      )}
+      <img
+        src={post.coverImageUrl ?? blogCoverByTag(post.tag)}
+        alt={post.title}
+        className="w-full h-auto rounded-xl mt-6 object-cover aspect-[16/9]"
+      />
 
       {post.excerpt && (
         <p className="text-lg text-gray-600 italic mt-6">{post.excerpt}</p>

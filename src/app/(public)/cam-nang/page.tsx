@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/db/prisma";
 import { BookOpen, ArrowRight } from "lucide-react";
+import { blogCoverByTag } from "@/lib/public-images";
 
 export const dynamic = "force-dynamic";
 
@@ -51,12 +52,13 @@ export default async function CamNangPage() {
               href={`/cam-nang/${post.slug}`}
               className="bg-white rounded-xl shadow-product hover:shadow-card transition overflow-hidden group"
             >
-              <div className="aspect-[16/10] bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center overflow-hidden">
-                {post.coverImageUrl ? (
-                  <img src={post.coverImageUrl} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                ) : (
-                  <BookOpen className="w-12 h-12 text-brand-400" />
-                )}
+              <div className="aspect-[16/10] overflow-hidden">
+                <img
+                  src={post.coverImageUrl ?? blogCoverByTag(post.tag)}
+                  alt={post.title}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
               </div>
               <div className="p-4">
                 {post.tag && (

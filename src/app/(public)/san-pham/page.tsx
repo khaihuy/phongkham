@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Pill, Search, Loader, ShoppingCart } from "lucide-react";
+import { productImageByType } from "@/lib/public-images";
 
 function fmtVND(n: number | null) {
   if (!n) return "Liên hệ";
@@ -99,8 +100,13 @@ function CatalogInner() {
               href={`/san-pham/${p.code}`}
               className="bg-white rounded-xl shadow-product hover:shadow-card transition-shadow overflow-hidden group"
             >
-              <div className="aspect-square bg-gradient-to-br from-brand-50 to-gray-50 flex items-center justify-center relative">
-                <Pill className="w-16 h-16 text-brand-300 group-hover:scale-110 transition-transform" />
+              <div className="aspect-square bg-white overflow-hidden relative">
+                <img
+                  src={productImageByType(p.productType)}
+                  alt={p.name}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                />
                 {p.requirePrescription && (
                   <span className="absolute top-2 right-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded font-medium">
                     Kê đơn

@@ -12,6 +12,7 @@ import {
   Clock,
   Truck,
 } from "lucide-react";
+import { IMG, blogCoverByTag, productImageByType, doctorAvatarByIndex } from "@/lib/public-images";
 
 export const dynamic = "force-dynamic";
 
@@ -112,8 +113,18 @@ export default async function HomePage() {
       )}
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 text-white">
-        <div className="max-w-8xl mx-auto px-4 py-12 md:py-16 grid md:grid-cols-2 gap-8 items-center">
+      <section
+        className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 text-white overflow-hidden"
+      >
+        {/* Background photo (giảm opacity để chữ vẫn rõ) */}
+        <img
+          src={IMG.hero}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover opacity-25 mix-blend-overlay"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-800/60 to-transparent" />
+        <div className="relative max-w-8xl mx-auto px-4 py-12 md:py-16 grid md:grid-cols-2 gap-8 items-center">
           <div>
             <p className="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-medium mb-4">
               🏥 {clinic?.name ?? "Phòng khám đa khoa"}
@@ -207,8 +218,13 @@ export default async function HomePage() {
               href={`/san-pham/${p.code}`}
               className="bg-white rounded-xl shadow-product hover:shadow-card transition-shadow overflow-hidden group"
             >
-              <div className="aspect-square bg-gradient-to-br from-brand-50 to-gray-50 flex items-center justify-center">
-                <Pill className="w-16 h-16 text-brand-300 group-hover:scale-110 transition-transform" />
+              <div className="aspect-square bg-gradient-to-br from-brand-50 to-gray-50 overflow-hidden">
+                <img
+                  src={productImageByType(p.productType)}
+                  alt={p.name}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                />
               </div>
               <div className="p-3">
                 <span className={`inline-block px-1.5 py-0.5 text-[10px] font-medium rounded ${
@@ -245,10 +261,14 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {doctors.map((d) => (
-            <div key={d.id} className="bg-white rounded-xl shadow-product p-4 text-center">
-              <div className="w-20 h-20 mx-auto bg-brand-100 rounded-full flex items-center justify-center mb-3">
-                <Stethoscope className="w-9 h-9 text-brand-600" />
+          {doctors.map((d, i) => (
+            <div key={d.id} className="bg-white rounded-xl shadow-product p-4 text-center hover:shadow-card transition">
+              <div className="w-20 h-20 mx-auto rounded-full overflow-hidden mb-3 ring-4 ring-brand-50">
+                <img
+                  src={d.user.avatarUrl ?? doctorAvatarByIndex(i)}
+                  alt={d.user.fullName}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <p className="font-semibold text-gray-900 text-sm">
                 {d.title ?? "BS."} {d.user.fullName}
@@ -276,17 +296,25 @@ export default async function HomePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {branches.map((b) => (
-                <div key={b.id} className="border border-gray-100 rounded-xl p-5 hover:border-brand-300 hover:shadow-card transition">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-5 h-5 text-brand-700" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900">{b.name}</h3>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{b.address}</p>
-                      <a href={`tel:${b.phone}`} className="text-sm text-brand-700 mt-2 inline-flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" /> {b.phone}
-                      </a>
+                <div key={b.id} className="border border-gray-100 rounded-xl overflow-hidden hover:border-brand-300 hover:shadow-card transition bg-white">
+                  <div className="aspect-[16/9] overflow-hidden">
+                    <img
+                      src={IMG.branchExterior}
+                      alt={b.name}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 text-brand-700 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900">{b.name}</h3>
+                        <p className="text-sm text-gray-600 mt-0.5 line-clamp-2">{b.address}</p>
+                        <a href={`tel:${b.phone}`} className="text-sm text-brand-700 mt-2 inline-flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5" /> {b.phone}
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -315,12 +343,13 @@ export default async function HomePage() {
                 href={`/cam-nang/${post.slug}`}
                 className="bg-white rounded-xl shadow-product hover:shadow-card transition overflow-hidden group"
               >
-                <div className="aspect-[16/10] bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center overflow-hidden">
-                  {post.coverImageUrl ? (
-                    <img src={post.coverImageUrl} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                  ) : (
-                    <span className="text-brand-400 text-4xl">📚</span>
-                  )}
+                <div className="aspect-[16/10] overflow-hidden">
+                  <img
+                    src={post.coverImageUrl ?? blogCoverByTag(post.tag)}
+                    alt={post.title}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  />
                 </div>
                 <div className="p-4">
                   {post.tag && <span className="inline-block px-2 py-0.5 bg-brand-50 text-brand-700 text-xs rounded">{post.tag}</span>}
