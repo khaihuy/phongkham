@@ -11,7 +11,13 @@ export const createPatientSchema = z.object({
   fullName: z.string().min(2, "Họ tên phải có ít nhất 2 ký tự"),
   dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), "Ngày sinh không hợp lệ"),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]),
-  phone: z.string().regex(/^0\d{9}$/, "Số điện thoại không hợp lệ"),
+  phone: z
+    .string()
+    .transform((s) => s.replace(/[\s\-\.()]/g, ""))
+    .refine(
+      (s) => /^(\+?84|0)\d{9,10}$/.test(s),
+      "Số điện thoại không hợp lệ (10-11 số, có thể bắt đầu bằng 0 hoặc +84)"
+    ),
   email: z.string().email("Email không hợp lệ").optional().or(z.literal("")),
   address: z.string().optional(),
   ward: z.string().optional(),
@@ -54,13 +60,24 @@ export const createAppointmentSchema = z.object({
   duration: z.number().int().positive().default(30),
   chiefComplaint: z.string().optional(),
   notes: z.string().optional(),
+  serviceId: z.string().optional(),
 })
 
 export const updateAppointmentSchema = createAppointmentSchema.partial()
 
 export const appointmentStatusSchema = z.object({
-  status: z.enum(["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"]),
+  status: z.enum(["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"]).optional(),
   cancelReason: z.string().optional(),
+  vitalSigns: z.object({
+    systolic: z.number().optional(),
+    diastolic: z.number().optional(),
+    heartRate: z.number().optional(),
+    temperature: z.number().optional(),
+    weight: z.number().optional(),
+    height: z.number().optional(),
+    spo2: z.number().optional(),
+    notes: z.string().optional(),
+  }).optional(),
 })
 
 // Doctors
@@ -79,8 +96,19 @@ export const createDoctorSchema = z.object({
 export const updateDoctorSchema = createDoctorSchema.partial()
 
 // Medical Records
+const prescriptionItemSchema = z.object({
+  drugId: z.string().min(1),
+  quantity: z.coerce.number().int().positive(),
+  dosage: z.string().optional().default(""),
+  frequency: z.string().optional().default(""),
+  duration: z.string().optional().default(""),
+  route: z.string().optional(),
+  unitPrice: z.coerce.number().nonnegative().default(0),
+  instructions: z.string().optional(),
+})
+
 export const createMedicalRecordSchema = z.object({
-  appointmentId: z.string().min(1, "Cuộc hẹn không được để trống"),
+  appointmentId: z.string().optional().nullable(),
   patientId: z.string().min(1, "Bệnh nhân không được để trống"),
   doctorId: z.string().min(1, "Bác sĩ không được để trống"),
   visitDate: z.string().refine((d) => !isNaN(Date.parse(d)), "Ngày khám không hợp lệ"),
@@ -93,6 +121,14 @@ export const createMedicalRecordSchema = z.object({
   followUpDate: z.string().optional(),
   followUpNotes: z.string().optional(),
   isConfidential: z.boolean().default(false),
+  // Đơn thuốc kèm khi tạo hồ sơ — tùy chọn. Nếu có sẽ tạo Prescription
+  // + PrescriptionItem ngay trong cùng request.
+  prescriptions: z
+    .array(z.object({
+      type: z.enum(["PRESCRIPTION", "SUPPLEMENT_ORDER"]).default("PRESCRIPTION"),
+      items: z.array(prescriptionItemSchema).min(1),
+    }))
+    .optional(),
 })
 
 export const updateMedicalRecordSchema = createMedicalRecordSchema.partial()
@@ -150,13 +186,14 @@ export const paymentSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Drugs
+// Drugs / Supplements
 export const createDrugSchema = z.object({
   categoryId: z.string().min(1, "Danh mục không được để trống"),
-  name: z.string().min(1, "Tên thuốc không được để trống"),
+  productType: z.enum(["DRUG", "SUPPLEMENT"]).default("DRUG"),
+  name: z.string().min(1, "Tên không được để trống"),
   genericName: z.string().optional(),
   brandName: z.string().optional(),
-  code: z.string().min(1, "Mã thuốc không được để trống"),
+  code: z.string().min(1, "Mã không được để trống"),
   barcode: z.string().optional(),
   unit: z.enum(["TABLET", "CAPSULE", "BOTTLE", "AMPOULE", "TUBE", "SACHET", "VIAL", "BOX"]),
   strength: z.string().optional(),
@@ -166,6 +203,8 @@ export const createDrugSchema = z.object({
   registrationNo: z.string().optional(),
   requirePrescription: z.boolean().default(false),
   minStock: z.number().int().nonnegative().default(10),
+  isFeatured: z.boolean().optional(),
+  featuredOrder: z.number().int().optional(),
 })
 
 export const updateDrugSchema = createDrugSchema.partial()

@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -98,6 +99,16 @@ enum PrescriptionStatus {
   CANCELLED
 }
 
+enum ProductType {
+  DRUG          // Thuốc (cần kê đơn, có quản lý theo Luật Dược)
+  SUPPLEMENT    // Thực phẩm bổ sung / TPCN (không kê đơn, quản lý nhẹ hơn)
+}
+
+enum PrescriptionType {
+  PRESCRIPTION       // Đơn thuốc
+  SUPPLEMENT_ORDER   // Đơn thực phẩm bổ sung
+}
+
 enum DrugTransactionType {
   IMPORT
   EXPORT
@@ -153,6 +164,13 @@ model Clinic {
   logoUrl     String?
   website     String?
   licenseNo   String?
+  // Thông tin Nhà thuốc đính kèm — dùng cho đơn TPCN/TPBS, GPP, tem hộp...
+  pharmacyName       String?
+  pharmacyAddress    String?
+  pharmacyPhone      String?
+  pharmacyLicenseNo  String?  // Giấy chứng nhận đủ điều kiện kinh doanh thuốc
+  pharmacyManager    String?  // Dược sĩ phụ trách
+  pharmacyTaxCode    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -211,6 +229,8 @@ model User {
   doctor        Doctor?
   auditLogs     AuditLog[]
   createdInvoices Invoice[] @relation("InvoiceCreatedBy")
+  performedMedicalServices MedicalRecordService[] @relation("PerformedMedicalServices")
+  posts         Post[] @relation("PostAuthor")
 }
 
 model AuditLog {
@@ -363,6 +383,13 @@ model PatientVital {
 // MODULE: APPOINTMENT
 // ─────────────────────────────────────────
 
+enum AppointmentSource {
+  WALK_IN     // Khách đến trực tiếp
+  PHONE       // Đặt qua điện thoại
+  ONLINE      // Đặt online qua website
+  REFERRAL    // Bệnh nhân giới thiệu
+}
+
 model Appointment {
   id              String            @id @default(cuid())
   appointmentCode String            @unique
@@ -373,12 +400,16 @@ model Appointment {
   specialtyId     String?
   type            AppointmentType   @default(GENERAL)
   status          AppointmentStatus @default(PENDING)
+  source          AppointmentSource @default(WALK_IN)
   scheduledDate   DateTime
   scheduledTime   String
+  queueNumber     Int?
   duration        Int               @default(30)
   chiefComplaint  String?
   notes           String?
+  serviceId       String?
   cancelReason    String?
+  vitalSigns      Json?
   reminderSent    Boolean           @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -391,6 +422,7 @@ model Appointment {
   medicalRecord  MedicalRecord?
   invoice        Invoice?
   telemedicine   Telemedicine?
+  service        Service?       @relation("AppointmentService", fields: [serviceId], references: [id])
 }
 
 // ─────────────────────────────────────────
@@ -400,7 +432,7 @@ model Appointment {
 model MedicalRecord {
   id              String   @id @default(cuid())
   recordCode      String   @unique
-  appointmentId   String   @unique
+  appointmentId   String?  @unique
   patientId       String
   doctorId        String
   visitDate       DateTime
@@ -416,13 +448,44 @@ model MedicalRecord {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  appointment    Appointment    @relation(fields: [appointmentId], references: [id])
+  appointment    Appointment?   @relation(fields: [appointmentId], references: [id])
   patient        Patient        @relation(fields: [patientId], references: [id])
   doctor         Doctor         @relation(fields: [doctorId], references: [id])
   diagnoses      Diagnosis[]
   prescriptions  Prescription[]
   labOrders      LabOrder[]
   imageOrders    ImageOrder[]
+  services       MedicalRecordService[]
+  invoice        Invoice?
+}
+
+enum MedicalServiceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+model MedicalRecordService {
+  id              String                @id @default(cuid())
+  medicalRecordId String
+  serviceId       String
+  sequence        Int                   // thứ tự thực hiện trong hồ sơ (1, 2, 3...)
+  status          MedicalServiceStatus  @default(PENDING)
+  notes           String?
+  performedAt     DateTime?
+  performedById   String?
+  quantity        Int                   @default(1)
+  unitPrice       Decimal               @db.Decimal(12, 2)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  medicalRecord MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+  service       Service       @relation(fields: [serviceId], references: [id])
+  performer     User?         @relation("PerformedMedicalServices", fields: [performedById], references: [id])
+
+  @@unique([medicalRecordId, sequence])
+  @@index([medicalRecordId])
 }
 
 model Diagnosis {
@@ -446,9 +509,12 @@ model LabOrder {
   result          String?
   resultDate      DateTime?
   status          String   @default("PENDING")
+  reviewedAt      DateTime?
   createdAt       DateTime @default(now())
+  serviceId       String?
 
   medicalRecord MedicalRecord @relation(fields: [medicalRecordId], references: [id])
+  service       Service?      @relation(fields: [serviceId], references: [id])
 }
 
 model ImageOrder {
@@ -460,9 +526,12 @@ model ImageOrder {
   findings        String?
   imageUrl        String?
   status          String   @default("PENDING")
+  reviewedAt      DateTime?
   createdAt       DateTime @default(now())
+  serviceId       String?
 
   medicalRecord MedicalRecord @relation(fields: [medicalRecordId], references: [id])
+  service       Service?      @relation(fields: [serviceId], references: [id])
 }
 
 // ─────────────────────────────────────────
@@ -485,6 +554,7 @@ model DrugCategory {
 model Drug {
   id              String   @id @default(cuid())
   categoryId      String
+  productType     ProductType @default(DRUG)
   name            String
   genericName     String?
   brandName       String?
@@ -499,6 +569,8 @@ model Drug {
   requirePrescription Boolean @default(false)
   minStock        Int      @default(10)
   isActive        Boolean  @default(true)
+  isFeatured      Boolean  @default(false)  // Hiển thị trên trang chủ
+  featuredOrder   Int      @default(0)       // Thứ tự sắp xếp (lớn = ưu tiên)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -562,6 +634,7 @@ model Prescription {
   id              String             @id @default(cuid())
   medicalRecordId String
   prescriptionCode String            @unique
+  type            PrescriptionType   @default(PRESCRIPTION)
   status          PrescriptionStatus @default(PENDING)
   notes           String?
   dispensedAt     DateTime?
@@ -608,6 +681,10 @@ model Service {
 
   clinic       Clinic        @relation(fields: [clinicId], references: [id])
   invoiceItems InvoiceItem[]
+  labOrders    LabOrder[]
+  imageOrders  ImageOrder[]
+  appointments Appointment[] @relation("AppointmentService")
+  medicalRecordServices MedicalRecordService[]
 }
 
 model Invoice {
@@ -615,6 +692,7 @@ model Invoice {
   invoiceCode     String        @unique
   patientId       String
   appointmentId   String?       @unique
+  medicalRecordId String?       @unique
   createdById     String
   status          InvoiceStatus @default(DRAFT)
   subtotal        Decimal       @db.Decimal(12, 2)
@@ -632,9 +710,10 @@ model Invoice {
   deletedAt       DateTime?
 
   patient     Patient       @relation(fields: [patientId], references: [id])
-  appointment Appointment?  @relation(fields: [appointmentId], references: [id])
-  createdBy   User          @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
-  items       InvoiceItem[]
+  appointment   Appointment?   @relation(fields: [appointmentId], references: [id])
+  medicalRecord MedicalRecord? @relation(fields: [medicalRecordId], references: [id])
+  createdBy     User           @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  items         InvoiceItem[]
   payments    Payment[]
 }
 
@@ -739,4 +818,57 @@ model Telemedicine {
   updatedAt     DateTime           @updatedAt
 
   appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// ─────────────────────────────────────────
+// MODULE: WEBSITE / CMS
+// ─────────────────────────────────────────
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Post {
+  id              String     @id @default(cuid())
+  slug            String     @unique
+  title           String
+  excerpt         String?
+  content         String     // Markdown / HTML
+  coverImageUrl   String?
+  tag             String?    // VD: Thuốc / Bệnh thường gặp / Mẹ & Bé
+  status          PostStatus @default(DRAFT)
+  seoTitle        String?
+  seoDescription  String?
+  publishedAt     DateTime?
+  authorId        String?
+  viewCount       Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  author User? @relation("PostAuthor", fields: [authorId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([tag])
+}
+
+// Singleton — chỉ có 1 row, dùng cho cấu hình website public
+model SiteSettings {
+  id              String   @id @default("singleton")
+  heroTitle       String   @default("Chăm sóc sức khỏe toàn diện cho gia đình")
+  heroSubtitle    String   @default("Đặt lịch khám online · Đội ngũ bác sĩ chuyên môn cao")
+  heroCtaText     String   @default("Đặt lịch khám ngay")
+  heroCtaUrl      String   @default("/dat-lich")
+  hotline         String   @default("1800 6928")
+  promoBannerText String?
+  promoBannerUrl  String?
+  facebookUrl     String?
+  youtubeUrl      String?
+  zaloUrl         String?
+  seoTitle        String?
+  seoDescription  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

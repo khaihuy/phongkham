@@ -76,7 +76,7 @@ export const authConfig = {
             email: user.email,
             name: user.fullName,
             role: user.role,
-            image: user.avatarUrl,
+            image: user.avatarUrl ?? undefined,
           }
         } catch (error) {
           console.error("Auth error:", error)
@@ -100,6 +100,7 @@ export const authConfig = {
     },
     session({ session, token }) {
       if (session.user) {
+        session.user.id = (token.id ?? token.sub) as string
         session.user.role = token.role as string
         session.user.username = token.username as string
       }
@@ -124,6 +125,7 @@ export const authConfig = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
+  trustHost: true,
 } satisfies NextAuthConfig
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)

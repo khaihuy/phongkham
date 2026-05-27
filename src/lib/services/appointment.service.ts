@@ -1,6 +1,6 @@
 import { prisma } from "@/db/prisma"
 import type { AppointmentInput, AppointmentUpdateInput } from "@/lib/validations/appointment.schema"
-import { generateCode } from "@/lib/utils"
+import { nextCode } from "@/lib/utils"
 
 export const appointmentService = {
   async list(params: {
@@ -68,8 +68,8 @@ export const appointmentService = {
   },
 
   async create(data: AppointmentInput) {
-    const count = await prisma.appointment.count()
-    const appointmentCode = generateCode("LH", count + 1)
+    const all = await prisma.appointment.findMany({ select: { appointmentCode: true } })
+    const appointmentCode = nextCode(all.map((a) => a.appointmentCode), "LH")
 
     return prisma.appointment.create({
       data: {

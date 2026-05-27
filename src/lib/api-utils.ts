@@ -141,9 +141,9 @@ export async function requireRole(roles: string[]) {
  * Pagination helper
  */
 export interface PaginationParams {
-  page?: string | number
-  pageSize?: string | number
-  limit?: string | number
+  page?: string | number | null
+  pageSize?: string | number | null
+  limit?: string | number | null
 }
 
 export function getPaginationParams(

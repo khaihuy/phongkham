@@ -18,6 +18,14 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     include: {
       patient: true,
       appointment: true,
+      medicalRecord: {
+        include: {
+          prescriptions: {
+            include: { items: { include: { drug: true } } },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      },
       createdBy: { select: { id: true, fullName: true, email: true } },
       items: {
         include: {
@@ -33,16 +41,14 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     throw error("NOT_FOUND", 404, "Hóa đơn không tìm thấy")
   }
 
-  // Calculate totals
-  const paidAmount = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
-  const remainingAmount = parseFloat(invoice.totalAmount.toString()) - parseFloat(paidAmount.toString())
+  // Calculate totals (Prisma Decimal → number)
+  const paidAmount = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0)
+  const remainingAmount = Number(invoice.totalAmount) - paidAmount
 
   return sendSuccess({
-    invoice: {
-      ...invoice,
-      paidAmount,
-      remainingAmount,
-    },
+    ...invoice,
+    paidAmount,
+    remainingAmount,
   })
 })
 
@@ -70,7 +76,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
       ...(input.items && {
         items: {
           deleteMany: {},
-          create: input.items.map((item) => ({
+          create: input.items.map((item: any) => ({
             type: item.type,
             serviceId: item.serviceId,
             drugId: item.drugId,
@@ -97,7 +103,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
     },
   })
 
-  return sendSuccess({ invoice: updated })
+  return sendSuccess(updated)
 })
 
 export const DELETE = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -111,7 +117,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: { para
     },
   })
 
-  return sendSuccess({ invoice })
+  return sendSuccess(invoice)
 })
 
 export const PATCH = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -146,11 +152,16 @@ export const PATCH = apiHandler(async (request: NextRequest, { params }: { param
       },
     })
 
-    return sendSuccess({ invoice: updated })
+    return sendSuccess(updated)
   }
 
   if (action === "add-payment") {
-    const input = await validateBody(request, paymentSchema)
+    const parsed = paymentSchema.safeParse(body)
+    if (!parsed.success) {
+      const details = parsed.error.errors.map((e) => ({ field: e.path.join("."), message: e.message }))
+      throw error("VALIDATION_ERROR", 400, "Dữ liệu thanh toán không hợp lệ")
+    }
+    const input = parsed.data
 
     const payment = await prisma.payment.create({
       data: {
@@ -171,21 +182,29 @@ export const PATCH = apiHandler(async (request: NextRequest, { params }: { param
     })
 
     if (invoice) {
-      const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
-      if (parseFloat(totalPaid.toString()) >= parseFloat(invoice.totalAmount.toString())) {
+      const totalPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0)
+      if (totalPaid >= Number(invoice.totalAmount)) {
         await prisma.invoice.update({
           where: { id: params.id },
           data: { status: "PAID" },
         })
-      } else if (parseFloat(totalPaid.toString()) > 0) {
-        await prisma.invoice.update({
-          where: { id: params.id },
-          data: { status: "PARTIAL" },
-        })
       }
+      // Partial payments: keep invoice status as ISSUED (no PARTIAL in InvoiceStatus enum)
     }
 
-    return sendSuccess({ payment }, 201)
+    return sendSuccess(payment, 201)
+  }
+
+  if (action === "update-insurance") {
+    const { insuranceCover } = body
+    if (insuranceCover === undefined || isNaN(Number(insuranceCover))) {
+      throw error("BAD_REQUEST", 400, "insuranceCover không hợp lệ")
+    }
+    const updated = await prisma.invoice.update({
+      where: { id: params.id },
+      data: { insuranceCover: parseFloat(String(insuranceCover)) },
+    })
+    return sendSuccess(updated)
   }
 
   throw error("BAD_REQUEST", 400, "Invalid action")

@@ -34,7 +34,7 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     throw error("NOT_FOUND", 404, "Cuộc hẹn không tìm thấy")
   }
 
-  return sendSuccess({ appointment })
+  return sendSuccess(appointment)
 })
 
 export const PUT = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -54,7 +54,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
     },
   })
 
-  return sendSuccess({ appointment })
+  return sendSuccess(appointment)
 })
 
 export const DELETE = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -69,7 +69,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: { para
     },
   })
 
-  return sendSuccess({ appointment })
+  return sendSuccess(appointment)
 })
 
 export const PATCH = apiHandler(
@@ -81,8 +81,9 @@ export const PATCH = apiHandler(
     const appointment = await prisma.appointment.update({
       where: { id: params.id },
       data: {
-        status: input.status,
+        ...(input.status && { status: input.status }),
         ...(input.cancelReason && { cancelReason: input.cancelReason }),
+        ...(input.vitalSigns !== undefined && { vitalSigns: input.vitalSigns }),
       },
       include: {
         patient: { select: { id: true, fullName: true } },
@@ -90,6 +91,6 @@ export const PATCH = apiHandler(
       },
     })
 
-    return sendSuccess({ appointment })
+    return sendSuccess(appointment)
   }
 )

@@ -9,7 +9,8 @@ import {
   createMeta,
   error,
 } from "@/lib/api-utils"
-import { createMedicalRecordSchema } from "@/lib/validations"
+import { createMedicalRecordSchema, CreateMedicalRecordInput } from "@/lib/validations"
+import { nextCode } from "@/lib/utils"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
@@ -46,32 +47,67 @@ export const GET = apiHandler(async (request: NextRequest) => {
   ])
 
   const meta = createMeta(page, pageSize, total)
-  return sendSuccess({ records }, 200, meta)
+  return sendSuccess(records, 200, meta)
 })
 
 export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
-  const input = await validateBody(request, createMedicalRecordSchema)
+  const input = await validateBody<CreateMedicalRecordInput>(request, createMedicalRecordSchema)
 
-  // Generate record code
-  const lastRecord = await prisma.medicalRecord.findFirst({
-    orderBy: { recordCode: "desc" },
-    select: { recordCode: true },
-  })
+  // Sinh mã hồ sơ (HS0001, HS0016, ...)
+  const allCodes = await prisma.medicalRecord.findMany({ select: { recordCode: true } })
+  const recordCode = nextCode(allCodes.map((c) => c.recordCode), "HS")
 
-  let nextCode = "MED001"
-  if (lastRecord) {
-    const lastNum = parseInt(lastRecord.recordCode.replace("MED", ""))
-    nextCode = `MED${String(lastNum + 1).padStart(3, "0")}`
+  // appointmentId + prescriptions là tùy chọn
+  const { appointmentId, prescriptions, ...rest } = input
+
+  // Sinh prescriptionCode cho từng đơn (nếu có)
+  let prescriptionCreates: any[] = []
+  if (prescriptions && prescriptions.length > 0) {
+    const allPrescCodes = await prisma.prescription.findMany({ select: { prescriptionCode: true } })
+    const baseMax = (() => {
+      const codes = allPrescCodes.map((c) => c.prescriptionCode)
+      // dùng helper nextCode để lấy số kế tiếp nhưng cần sinh cho nhiều đơn
+      const re = /\d+/
+      let max = 0
+      for (const c of codes) {
+        const m = c.match(re)
+        if (m) { const n = parseInt(m[0], 10); if (!Number.isNaN(n) && n > max) max = n }
+      }
+      return max
+    })()
+
+    prescriptionCreates = prescriptions.map((p: any, idx: number) => ({
+      // TPBS dùng prefix DTBS để phân biệt với đơn thuốc thông thường
+      prescriptionCode: (p.type === "SUPPLEMENT_ORDER" ? "DTBS" : "DT") +
+        String(baseMax + idx + 1).padStart(4, "0"),
+      type: p.type ?? "PRESCRIPTION",
+      items: {
+        create: p.items.map((it: any) => ({
+          drugId: it.drugId,
+          quantity: it.quantity,
+          dosage: it.dosage,
+          frequency: it.frequency,
+          duration: it.duration,
+          route: it.route,
+          unitPrice: it.unitPrice,
+          instructions: it.instructions,
+        })),
+      },
+    }))
   }
 
   const record = await prisma.medicalRecord.create({
     data: {
-      ...input,
-      recordCode: nextCode,
+      ...rest,
+      ...(appointmentId ? { appointmentId } : {}),
+      recordCode,
       visitDate: new Date(input.visitDate),
       ...(input.followUpDate && { followUpDate: new Date(input.followUpDate) }),
+      ...(prescriptionCreates.length > 0 && {
+        prescriptions: { create: prescriptionCreates },
+      }),
     },
     include: {
       appointment: true,
@@ -84,5 +120,5 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   })
 
-  return sendSuccess({ record }, 201)
+  return sendSuccess(record, 201)
 })

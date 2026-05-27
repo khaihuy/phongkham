@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
 });
 
 const pageTitles: Record<string, string> = {
-  '/': 'Tổng quan',
+  '/dashboard': 'Tổng quan',
   '/patients': 'Bệnh nhân',
   '/appointments': 'Lịch hẹn',
   '/doctors': 'Bác sĩ',

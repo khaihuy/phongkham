@@ -10,13 +10,14 @@ import {
   error,
   requireRole,
 } from "@/lib/api-utils"
-import { createDrugSchema } from "@/lib/validations"
+import { createDrugSchema, CreateDrugInput } from "@/lib/validations"
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
   const { searchParams } = request.nextUrl
   const categoryId = searchParams.get("categoryId")
+  const productType = searchParams.get("productType") // DRUG | SUPPLEMENT | empty=cả 2
   const searchTerm = searchParams.get("search") || ""
   const { page, pageSize, skip } = getPaginationParams({
     page: searchParams.get("page"),
@@ -26,6 +27,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const where: any = {
     isActive: true,
     ...(categoryId && { categoryId }),
+    ...(productType === "DRUG" || productType === "SUPPLEMENT" ? { productType } : {}),
   }
 
   if (searchTerm) {
@@ -59,13 +61,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
   ])
 
   const meta = createMeta(page, pageSize, total)
-  return sendSuccess({ drugs }, 200, meta)
+  return sendSuccess(drugs, 200, meta)
 })
 
 export const POST = apiHandler(async (request: NextRequest) => {
   await requireRole(["ADMIN", "PHARMACIST"])
 
-  const input = await validateBody(request, createDrugSchema)
+  const input = await validateBody<CreateDrugInput>(request, createDrugSchema)
 
   // Check if category exists
   const category = await prisma.drugCategory.findUnique({
@@ -95,5 +97,5 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   })
 
-  return sendSuccess({ drug }, 201)
+  return sendSuccess(drug, 201)
 })

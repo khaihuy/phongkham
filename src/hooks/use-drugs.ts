@@ -17,14 +17,15 @@ interface PaginationMeta {
   totalPages: number;
 }
 
-export function useDrugs(page: number = 1, pageSize: number = 10, search?: string) {
+export function useDrugs(page: number = 1, pageSize: number = 10, search?: string, productType?: 'DRUG' | 'SUPPLEMENT') {
   const params = new URLSearchParams();
   params.set('page', page.toString());
   params.set('pageSize', pageSize.toString());
   if (search) params.set('search', search);
+  if (productType) params.set('productType', productType);
 
   return useQuery({
-    queryKey: ['drugs', page, pageSize, search],
+    queryKey: ['drugs', page, pageSize, search, productType],
     queryFn: async () => {
       const response = await fetch(`/api/drugs?${params}`);
       if (!response.ok) throw new Error('Failed to fetch drugs');

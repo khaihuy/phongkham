@@ -8,6 +8,7 @@ import {
   error,
 } from "@/lib/api-utils"
 import { updateMedicalRecordSchema, prescriptionSchema } from "@/lib/validations"
+import { nextCode } from "@/lib/utils"
 
 export const GET = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
   await getAuthUser()
@@ -15,7 +16,9 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
   const record = await prisma.medicalRecord.findUnique({
     where: { id: params.id },
     include: {
-      appointment: true,
+      appointment: {
+        include: { invoice: { select: { id: true, invoiceCode: true, status: true } } },
+      },
       patient: true,
       doctor: { include: { user: true } },
       diagnoses: true,
@@ -24,8 +27,8 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
           items: { include: { drug: true } },
         },
       },
-      labOrders: true,
-      imageOrders: true,
+      labOrders: { include: { service: { select: { id: true, code: true, price: true } } } },
+      imageOrders: { include: { service: { select: { id: true, code: true, price: true } } } },
     },
   })
 
@@ -33,7 +36,7 @@ export const GET = apiHandler(async (request: NextRequest, { params }: { params:
     throw error("NOT_FOUND", 404, "Hồ sơ bệnh án không tìm thấy")
   }
 
-  return sendSuccess({ record })
+  return sendSuccess(record)
 })
 
 export const PUT = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -54,12 +57,12 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: { params:
       doctor: { select: { id: true, user: { select: { fullName: true } } } },
       diagnoses: true,
       prescriptions: { include: { items: true } },
-      labOrders: true,
-      imageOrders: true,
+      labOrders: { include: { service: { select: { id: true, code: true, price: true } } } },
+      imageOrders: { include: { service: { select: { id: true, code: true, price: true } } } },
     },
   })
 
-  return sendSuccess({ record })
+  return sendSuccess(record)
 })
 
 export const POST = apiHandler(async (request: NextRequest, { params }: { params: { id: string } }) => {
@@ -71,24 +74,16 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
   if (action === "add-prescription") {
     const input = await validateBody(request, prescriptionSchema)
 
-    // Generate prescription code
-    const lastPrescription = await prisma.prescription.findFirst({
-      orderBy: { prescriptionCode: "desc" },
-      select: { prescriptionCode: true },
-    })
-
-    let nextCode = "PRE001"
-    if (lastPrescription) {
-      const lastNum = parseInt(lastPrescription.prescriptionCode.replace("PRE", ""))
-      nextCode = `PRE${String(lastNum + 1).padStart(3, "0")}`
-    }
+    // Sinh mã đơn thuốc (DT0001, ...)
+    const allCodes = await prisma.prescription.findMany({ select: { prescriptionCode: true } })
+    const prescriptionCode = nextCode(allCodes.map((c) => c.prescriptionCode), "DT")
 
     const prescription = await prisma.prescription.create({
       data: {
         medicalRecordId: params.id,
-        prescriptionCode: nextCode,
+        prescriptionCode,
         items: {
-          create: input.items.map((item) => ({
+          create: input.items.map((item: any) => ({
             drugId: item.drugId,
             quantity: item.quantity,
             dosage: item.dosage,
@@ -104,7 +99,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
       include: { items: { include: { drug: true } } },
     })
 
-    return sendSuccess({ prescription }, 201)
+    return sendSuccess(prescription, 201)
   }
 
   if (action === "add-lab-order") {
@@ -119,7 +114,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
       },
     })
 
-    return sendSuccess({ labOrder }, 201)
+    return sendSuccess(labOrder, 201)
   }
 
   if (action === "add-image-order") {
@@ -134,7 +129,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: { params
       },
     })
 
-    return sendSuccess({ imageOrder }, 201)
+    return sendSuccess(imageOrder, 201)
   }
 
   throw error("BAD_REQUEST", 400, "Invalid action")

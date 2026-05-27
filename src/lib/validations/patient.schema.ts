@@ -4,7 +4,13 @@ export const patientSchema = z.object({
   fullName: z.string().min(2, "Họ tên phải có ít nhất 2 ký tự"),
   dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), "Ngày sinh không hợp lệ"),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]),
-  phone: z.string().regex(/^0\d{9}$/, "Số điện thoại không hợp lệ"),
+  phone: z
+    .string()
+    .transform((s) => s.replace(/[\s\-\.()]/g, ""))
+    .refine(
+      (s) => /^(\+?84|0)\d{9,10}$/.test(s),
+      "Số điện thoại không hợp lệ (10-11 số, có thể bắt đầu bằng 0 hoặc +84)"
+    ),
   email: z.string().email("Email không hợp lệ").optional().or(z.literal("")),
   address: z.string().optional(),
   ward: z.string().optional(),

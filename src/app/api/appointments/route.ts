@@ -9,16 +9,20 @@ import {
   createMeta,
   error,
 } from "@/lib/api-utils"
-import { createAppointmentSchema } from "@/lib/validations"
+import { createAppointmentSchema, type CreateAppointmentInput } from "@/lib/validations"
 import { addDays } from "date-fns"
+import { nextCode } from "@/lib/utils"
+
+const VALID_APPOINTMENT_STATUSES = ["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"] as const
 
 export const GET = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
   const { searchParams } = request.nextUrl
-  const status = searchParams.get("status")
+  const statusParam = searchParams.get("status")
   const doctorId = searchParams.get("doctorId")
   const patientId = searchParams.get("patientId")
+  const source = searchParams.get("source")
   const dateFrom = searchParams.get("dateFrom")
   const dateTo = searchParams.get("dateTo")
   const { page, pageSize, skip } = getPaginationParams({
@@ -26,27 +30,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     pageSize: searchParams.get("pageSize"),
   })
 
-  // Build where clause
-  const where: any = {
-    isActive: { $ne: true },
-  }
-
-  if (status) {
-    where.status = status
-  }
-  if (doctorId) {
-    where.doctorId = doctorId
-  }
-  if (patientId) {
-    where.patientId = patientId
-  }
-  if (dateFrom) {
-    where.scheduledDate = { $gte: new Date(dateFrom) }
-  }
-  if (dateTo) {
-    if (!where.scheduledDate) where.scheduledDate = {}
-    where.scheduledDate.$lte = new Date(dateTo)
-  }
+  // Validate status against enum
+  const status = statusParam && VALID_APPOINTMENT_STATUSES.includes(statusParam as any) ? (statusParam as any) : undefined
 
   const [appointments, total] = await Promise.all([
     prisma.appointment.findMany({
@@ -54,6 +39,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         ...(status && { status }),
         ...(doctorId && { doctorId }),
         ...(patientId && { patientId }),
+        ...(source && { source: source as any }),
         ...(dateFrom && { scheduledDate: { gte: new Date(dateFrom) } }),
         ...(dateTo && {
           scheduledDate: {
@@ -69,6 +55,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         patient: { select: { id: true, patientCode: true, fullName: true } },
         doctor: { select: { id: true, user: { select: { fullName: true } } } },
         room: { select: { id: true, name: true } },
+        service: { select: { id: true, name: true, price: true } },
       },
     }),
     prisma.appointment.count({
@@ -76,6 +63,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         ...(status && { status }),
         ...(doctorId && { doctorId }),
         ...(patientId && { patientId }),
+        ...(source && { source: source as any }),
         ...(dateFrom && { scheduledDate: { gte: new Date(dateFrom) } }),
         ...(dateTo && {
           scheduledDate: {
@@ -88,30 +76,23 @@ export const GET = apiHandler(async (request: NextRequest) => {
   ])
 
   const meta = createMeta(page, pageSize, total)
-  return sendSuccess({ appointments }, 200, meta)
+  return sendSuccess(appointments, 200, meta)
 })
 
 export const POST = apiHandler(async (request: NextRequest) => {
   await getAuthUser()
 
-  const input = await validateBody(request, createAppointmentSchema)
+  const input = await validateBody<CreateAppointmentInput>(request, createAppointmentSchema)
 
-  // Generate appointment code
-  const lastAppointment = await prisma.appointment.findFirst({
-    orderBy: { appointmentCode: "desc" },
-    select: { appointmentCode: true },
-  })
-
-  let nextCode = "APT001"
-  if (lastAppointment) {
-    const lastNum = parseInt(lastAppointment.appointmentCode.replace("APT", ""))
-    nextCode = `APT${String(lastNum + 1).padStart(3, "0")}`
-  }
+  // Sinh mã lịch hẹn (LH0001, LH0031, ...) — dùng max(num)+1 thay vì count+1
+  // để tránh trùng khi có record bị xóa
+  const allCodes = await prisma.appointment.findMany({ select: { appointmentCode: true } })
+  const appointmentCode = nextCode(allCodes.map((c) => c.appointmentCode), "LH")
 
   const appointment = await prisma.appointment.create({
     data: {
       ...input,
-      appointmentCode: nextCode,
+      appointmentCode,
       scheduledDate: new Date(input.scheduledDate),
     },
     include: {
@@ -121,5 +102,5 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   })
 
-  return sendSuccess({ appointment }, 201)
+  return sendSuccess(appointment, 201)
 })

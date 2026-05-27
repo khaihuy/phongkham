@@ -26,6 +26,28 @@ export function generateCode(prefix: string, num: number) {
   return `${prefix}${String(num).padStart(4, "0")}`
 }
 
+// Trích số lớn nhất từ list mã (regex \d+) — xử lý mọi prefix và padding
+// (BN001, BN0001, LH030, INV2024-005, ĐT001, ...).
+// Trả 0 nếu list rỗng hoặc không có số. Bỏ qua NaN.
+export function maxCodeNumber(codes: string[]): number {
+  let max = 0
+  for (const code of codes) {
+    if (!code) continue
+    const match = code.match(/\d+/)
+    if (match) {
+      const n = parseInt(match[0], 10)
+      if (!Number.isNaN(n) && n > max) max = n
+    }
+  }
+  return max
+}
+
+// Tiện ích: sinh mã tiếp theo từ list mã hiện có.
+// nextCode(['LH001','LH030'], 'LH') → 'LH0031'
+export function nextCode(existingCodes: string[], prefix: string): string {
+  return generateCode(prefix, maxCodeNumber(existingCodes) + 1)
+}
+
 export function calcAge(dateOfBirth: Date | string) {
   const dob = new Date(dateOfBirth)
   const today = new Date()

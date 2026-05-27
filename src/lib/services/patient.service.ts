@@ -2,6 +2,28 @@ import { prisma } from "@/db/prisma"
 import type { PatientInput, PatientUpdateInput } from "@/lib/validations/patient.schema"
 import { generateCode } from "@/lib/utils"
 
+// Lấy số lớn nhất từ list patientCode (xử lý cả BN001, BN0001, PKC123, v.v.)
+export function maxPatientNumber(codes: string[]): number {
+  let max = 0
+  for (const code of codes) {
+    const match = code.match(/\d+/)
+    if (match) {
+      const n = parseInt(match[0], 10)
+      if (!Number.isNaN(n) && n > max) max = n
+    }
+  }
+  return max
+}
+
+// Sinh code tiếp theo dùng prefix BN + 4 chữ số (BN0001, BN0021...).
+async function generateNextPatientCode(): Promise<string> {
+  const patients = await prisma.patient.findMany({
+    select: { patientCode: true },
+  })
+  const maxNum = maxPatientNumber(patients.map((p) => p.patientCode))
+  return generateCode("BN", maxNum + 1)
+}
+
 export const patientService = {
   async list(params: {
     search?: string
@@ -60,8 +82,7 @@ export const patientService = {
   },
 
   async create(data: PatientInput) {
-    const count = await prisma.patient.count()
-    const patientCode = generateCode("BN", count + 1)
+    const patientCode = await generateNextPatientCode()
 
     return prisma.patient.create({
       data: {
