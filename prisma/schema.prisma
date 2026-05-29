@@ -854,6 +854,36 @@ model Post {
   @@index([tag])
 }
 
+enum FooterGroup {
+  SUPPORT   // Hỗ trợ khách hàng
+  ABOUT     // Về chúng tôi
+  LEGAL     // Pháp lý
+}
+
+// Trang nội dung tĩnh (Giới thiệu, FAQ, Điều khoản, Bảo mật...) — quản lý ở admin
+// và hiển thị tại footer website công khai theo nhóm.
+model SitePage {
+  id              String       @id @default(cuid())
+  slug            String       @unique
+  title           String
+  content         String       // HTML / Markdown
+  excerpt         String?
+  status          PostStatus   @default(PUBLISHED)
+  // Cấu hình hiển thị ở footer
+  footerGroup     FooterGroup? // null = không hiện ở footer
+  footerLabel     String?      // Nhãn footer (mặc định = title)
+  linkUrl         String?      // Nếu set, footer trỏ tới URL này thay vì /{slug}
+  sortOrder       Int          @default(0)
+  seoTitle        String?
+  seoDescription  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  @@index([status])
+  @@index([footerGroup, sortOrder])
+}
+
 // Singleton — chỉ có 1 row, dùng cho cấu hình website public
 model SiteSettings {
   id              String   @id @default("singleton")

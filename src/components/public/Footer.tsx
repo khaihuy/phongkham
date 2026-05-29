@@ -1,6 +1,28 @@
 import Link from "next/link";
 import { Phone, Mail, MapPin, Facebook, Youtube, MessageCircle } from "lucide-react";
-import type { SiteContext } from "./PublicShell";
+import type { SiteContext, FooterLink } from "./PublicShell";
+
+// Link mặc định khi admin chưa cấu hình trang nội dung nào cho nhóm tương ứng
+const DEFAULT_LINKS: Record<FooterLink["group"], { label: string; url: string }[]> = {
+  SUPPORT: [
+    { label: "Tra cứu đơn hàng", url: "/tra-cuu-don" },
+    { label: "Câu hỏi thường gặp", url: "/cau-hoi" },
+    { label: "Liên hệ", url: "/lien-he" },
+    { label: "Đặt lịch khám", url: "/dat-lich" },
+  ],
+  ABOUT: [
+    { label: "Giới thiệu", url: "/gioi-thieu" },
+    { label: "Hệ thống chi nhánh", url: "/chi-nhanh" },
+    { label: "Tuyển dụng", url: "/tuyen-dung" },
+    { label: "Cẩm nang sức khỏe", url: "/cam-nang" },
+  ],
+  LEGAL: [
+    { label: "Điều khoản sử dụng", url: "/dieu-khoan" },
+    { label: "Chính sách bảo mật", url: "/bao-mat" },
+    { label: "Chính sách giao hàng", url: "/giao-hang" },
+    { label: "Đổi trả", url: "/doi-tra" },
+  ],
+};
 
 export default function PublicFooter({ site }: { site: SiteContext }) {
   const clinicName = site.clinic?.name ?? "Phòng Khám";
@@ -11,6 +33,25 @@ export default function PublicFooter({ site }: { site: SiteContext }) {
   const address = site.clinic?.address ?? "";
   const licenseNo = site.clinic?.licenseNo ?? "";
   const { facebookUrl, youtubeUrl, zaloUrl } = site.settings ?? {};
+
+  // Lấy link theo nhóm — ưu tiên cấu hình admin, fallback về mặc định
+  const linksFor = (group: FooterLink["group"]) => {
+    const fromDb = (site.footerLinks ?? []).filter((l) => l.group === group);
+    return fromDb.length > 0 ? fromDb : DEFAULT_LINKS[group];
+  };
+
+  const FooterColumn = ({ title, group }: { title: string; group: FooterLink["group"] }) => (
+    <div>
+      <h3 className="font-semibold mb-3">{title}</h3>
+      <ul className="space-y-2 text-brand-200">
+        {linksFor(group).map((l) => (
+          <li key={l.url + l.label}>
+            <Link href={l.url} className="hover:text-white">{l.label}</Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 
   return (
     <footer className="bg-brand-900 text-white mt-16">
@@ -31,35 +72,9 @@ export default function PublicFooter({ site }: { site: SiteContext }) {
           </p>
         </div>
 
-        <div>
-          <h3 className="font-semibold mb-3">Hỗ trợ khách hàng</h3>
-          <ul className="space-y-2 text-brand-200">
-            <li><Link href="/tra-cuu-don" className="hover:text-white">Tra cứu đơn hàng</Link></li>
-            <li><Link href="/cau-hoi" className="hover:text-white">Câu hỏi thường gặp</Link></li>
-            <li><Link href="/lien-he" className="hover:text-white">Liên hệ</Link></li>
-            <li><Link href="/dat-lich" className="hover:text-white">Đặt lịch khám</Link></li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="font-semibold mb-3">Về chúng tôi</h3>
-          <ul className="space-y-2 text-brand-200">
-            <li><Link href="/gioi-thieu" className="hover:text-white">Giới thiệu</Link></li>
-            <li><Link href="/chi-nhanh" className="hover:text-white">Hệ thống chi nhánh</Link></li>
-            <li><Link href="/tuyen-dung" className="hover:text-white">Tuyển dụng</Link></li>
-            <li><Link href="/cam-nang" className="hover:text-white">Cẩm nang sức khỏe</Link></li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="font-semibold mb-3">Pháp lý</h3>
-          <ul className="space-y-2 text-brand-200">
-            <li><Link href="/dieu-khoan" className="hover:text-white">Điều khoản sử dụng</Link></li>
-            <li><Link href="/bao-mat" className="hover:text-white">Chính sách bảo mật</Link></li>
-            <li><Link href="/giao-hang" className="hover:text-white">Chính sách giao hàng</Link></li>
-            <li><Link href="/doi-tra" className="hover:text-white">Đổi trả</Link></li>
-          </ul>
-        </div>
+        <FooterColumn title="Hỗ trợ khách hàng" group="SUPPORT" />
+        <FooterColumn title="Về chúng tôi" group="ABOUT" />
+        <FooterColumn title="Pháp lý" group="LEGAL" />
 
         <div>
           <h3 className="font-semibold mb-3">Liên hệ</h3>

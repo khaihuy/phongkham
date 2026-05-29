@@ -9,6 +9,7 @@ import {
   MessageSquare,
   ExternalLink,
   Globe,
+  FileText,
   ArrowRight,
 } from 'lucide-react';
 
@@ -57,6 +58,13 @@ export default function WebsiteHubPage() {
       stat: featuredCount ?? '—',
       statLabel: 'sản phẩm',
       color: 'bg-purple-50 text-purple-700 border-purple-100',
+    },
+    {
+      href: '/website/pages',
+      icon: FileText,
+      title: 'Trang nội dung & Footer',
+      desc: 'Giới thiệu, FAQ, điều khoản, bảo mật — mục chân trang',
+      color: 'bg-indigo-50 text-indigo-700 border-indigo-100',
     },
     {
       href: '/website/settings',

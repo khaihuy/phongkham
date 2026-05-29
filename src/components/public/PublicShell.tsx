@@ -12,6 +12,12 @@ const queryClient = new QueryClient({
   },
 });
 
+export interface FooterLink {
+  group: "SUPPORT" | "ABOUT" | "LEGAL";
+  label: string;
+  url: string;
+}
+
 export interface SiteContext {
   clinic: {
     name?: string;
@@ -28,6 +34,7 @@ export interface SiteContext {
     youtubeUrl?: string | null;
     zaloUrl?: string | null;
   } | null;
+  footerLinks?: FooterLink[];
 }
 
 export default function PublicShell({ children, site }: { children: ReactNode; site: SiteContext }) {
