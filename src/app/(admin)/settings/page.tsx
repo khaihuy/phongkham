@@ -29,7 +29,7 @@ export default function SettingsPage() {
 
   const [clinicForm, setClinicForm] = useState({
     name: '', taxCode: '', phone: '', email: '',
-    address: '', website: '', licenseNo: '',
+    address: '', website: '', licenseNo: '', logoUrl: '',
     pharmacyName: '', pharmacyAddress: '', pharmacyPhone: '',
     pharmacyLicenseNo: '', pharmacyManager: '', pharmacyTaxCode: '',
   });
@@ -44,6 +44,7 @@ export default function SettingsPage() {
         address: clinicData.address ?? '',
         website: clinicData.website ?? '',
         licenseNo: clinicData.licenseNo ?? '',
+        logoUrl: clinicData.logoUrl ?? '',
         pharmacyName: clinicData.pharmacyName ?? '',
         pharmacyAddress: clinicData.pharmacyAddress ?? '',
         pharmacyPhone: clinicData.pharmacyPhone ?? '',
@@ -134,6 +135,32 @@ export default function SettingsPage() {
             </div>
           ) : (
             <form onSubmit={e => { e.preventDefault(); updateClinic.mutate(clinicForm); }} className="space-y-4">
+              {/* Logo */}
+              <div className="p-4 border border-gray-200 rounded-xl bg-gray-50">
+                <p className="text-sm font-medium text-gray-700 mb-3">Logo phòng khám</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-sky-600 flex items-center justify-center flex-shrink-0 border border-gray-200">
+                    {clinicForm.logoUrl ? (
+                      <img src={clinicForm.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-white font-bold text-xl">
+                        {clinicForm.name.replace(/^Phòng Khám\s*(Đa Khoa\s*)?/i, '').trim().split(/\s+/).slice(0,2).map((w: string) => w[0]?.toUpperCase()).join('') || 'PK'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">URL hình ảnh logo (PNG, JPG, SVG)</label>
+                    <input
+                      value={clinicForm.logoUrl}
+                      onChange={e => f('logoUrl', e.target.value)}
+                      disabled={!isAdmin}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-gray-50 text-sm"
+                      placeholder="https://... hoặc /logo.png"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Để trống sẽ dùng chữ viết tắt tên phòng khám</p>
+                  </div>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">

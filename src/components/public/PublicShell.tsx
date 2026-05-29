@@ -25,6 +25,7 @@ export interface SiteContext {
     email?: string | null;
     address?: string;
     licenseNo?: string | null;
+    logoUrl?: string | null;
   } | null;
   settings: {
     hotline?: string;

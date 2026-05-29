@@ -15,6 +15,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
         email: true,
         address: true,
         licenseNo: true,
+        logoUrl: true,
       },
     }),
     prisma.siteSettings.findUnique({

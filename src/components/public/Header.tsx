@@ -45,8 +45,12 @@ export default function PublicHeader({ site }: { site: SiteContext }) {
         <div className="flex items-center gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-              {initials}
+            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-lg overflow-hidden">
+              {site.clinic?.logoUrl ? (
+                <img src={site.clinic.logoUrl} alt={clinicName} className="w-full h-full object-contain p-0.5" />
+              ) : (
+                initials
+              )}
             </div>
             <div className="hidden sm:block">
               <p className="font-bold text-brand-700 text-lg leading-tight">{shortName}</p>
