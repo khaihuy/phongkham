@@ -2,7 +2,7 @@ export type Gender = 'Nam' | 'Nữ' | 'Khác';
 
 export type BloodType = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
 
-export type AppointmentStatus = 'chờ khám' | 'đang khám' | 'hoàn thành' | 'hủy';
+export type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export type PaymentStatus = 'chưa thanh toán' | 'đã thanh toán' | 'một phần';
 
