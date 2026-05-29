@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LogOut, User, Shield, Building2, Phone, Mail, MapPin, Globe, FileText, Hash, Save, Loader, DatabaseZap, Plug, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { LogOut, User, Shield, Building2, Phone, Mail, MapPin, Globe, FileText, Hash, Save, Loader, DatabaseZap, Plug, CheckCircle2, XCircle, RefreshCw, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -13,6 +13,117 @@ const ROLE_LABELS: Record<string, string> = {
   PHARMACIST: 'Dược sĩ',
   ACCOUNTANT: 'Kế toán',
 };
+
+function LogoUploader({ value, onChange, clinicName, disabled }: {
+  value: string;
+  onChange: (url: string) => void;
+  clinicName: string;
+  disabled: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [drag, setDrag] = useState(false);
+
+  const initials = clinicName.replace(/^Phòng Khám\s*(Đa Khoa\s*)?/i, '').trim()
+    .split(/\s+/).slice(0, 2).map((w: string) => w[0]?.toUpperCase()).join('') || 'PK';
+
+  async function upload(file: File) {
+    if (file.size > 512 * 1024) { toast.error('File quá lớn, tối đa 512KB'); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch('/api/upload/logo', { method: 'POST', body: fd });
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error ?? 'Lỗi upload');
+      onChange(json.data.url);
+      toast.success('Đã cập nhật logo');
+    } catch (e: any) {
+      toast.error(e.message ?? 'Lỗi upload');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleFile(files: FileList | null) {
+    if (files?.[0]) upload(files[0]);
+  }
+
+  return (
+    <div className="p-4 border border-gray-200 rounded-xl bg-gray-50">
+      <p className="text-sm font-medium text-gray-700 mb-3">Logo phòng khám</p>
+      <div className="flex items-start gap-4">
+        {/* Preview */}
+        <div className="relative flex-shrink-0">
+          <div className="w-20 h-20 rounded-xl overflow-hidden bg-sky-600 flex items-center justify-center border border-gray-200">
+            {value ? (
+              <img src={value} alt="Logo" className="w-full h-full object-contain p-1" />
+            ) : (
+              <span className="text-white font-bold text-2xl">{initials}</span>
+            )}
+          </div>
+          {value && !disabled && (
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center"
+              title="Xoá logo"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
+        {/* Upload area */}
+        {!disabled && (
+          <div className="flex-1 space-y-2">
+            <div
+              onClick={() => fileRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDrag(true); }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={e => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files); }}
+              className={`border-2 border-dashed rounded-lg px-4 py-5 text-center cursor-pointer transition-colors
+                ${drag ? 'border-sky-400 bg-sky-50' : 'border-gray-300 hover:border-sky-400 hover:bg-sky-50'}`}
+            >
+              {uploading ? (
+                <div className="flex items-center justify-center gap-2 text-sky-600">
+                  <Loader className="w-4 h-4 animate-spin" /> Đang upload...
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-5 h-5 text-gray-400 mx-auto mb-1" />
+                  <p className="text-sm text-gray-600">Kéo thả hoặc <span className="text-sky-600 font-medium">chọn file</span></p>
+                  <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, SVG, WebP — tối đa 512KB</p>
+                </>
+              )}
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+              className="hidden"
+              onChange={e => handleFile(e.target.files)}
+            />
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs text-gray-400">hoặc nhập URL</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+            <input
+              value={value.startsWith('data:') ? '' : value}
+              onChange={e => onChange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+              placeholder="https://example.com/logo.png"
+            />
+          </div>
+        )}
+        {disabled && value && (
+          <p className="text-xs text-gray-400 self-center">Logo đã được cấu hình</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -136,31 +247,12 @@ export default function SettingsPage() {
           ) : (
             <form onSubmit={e => { e.preventDefault(); updateClinic.mutate(clinicForm); }} className="space-y-4">
               {/* Logo */}
-              <div className="p-4 border border-gray-200 rounded-xl bg-gray-50">
-                <p className="text-sm font-medium text-gray-700 mb-3">Logo phòng khám</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-sky-600 flex items-center justify-center flex-shrink-0 border border-gray-200">
-                    {clinicForm.logoUrl ? (
-                      <img src={clinicForm.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-white font-bold text-xl">
-                        {clinicForm.name.replace(/^Phòng Khám\s*(Đa Khoa\s*)?/i, '').trim().split(/\s+/).slice(0,2).map((w: string) => w[0]?.toUpperCase()).join('') || 'PK'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1">URL hình ảnh logo (PNG, JPG, SVG)</label>
-                    <input
-                      value={clinicForm.logoUrl}
-                      onChange={e => f('logoUrl', e.target.value)}
-                      disabled={!isAdmin}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-gray-50 text-sm"
-                      placeholder="https://... hoặc /logo.png"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">Để trống sẽ dùng chữ viết tắt tên phòng khám</p>
-                  </div>
-                </div>
-              </div>
+              <LogoUploader
+                value={clinicForm.logoUrl}
+                onChange={url => f('logoUrl', url)}
+                clinicName={clinicForm.name}
+                disabled={!isAdmin}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
