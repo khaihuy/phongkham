@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { seedSitePages } from './seed-pages';
 
 const prisma = new PrismaClient();
 
@@ -15,7 +16,9 @@ async function main() {
 
   const existingClinic = await prisma.clinic.findFirst();
   if (existingClinic) {
-    console.log('⏭️  Dữ liệu đã tồn tại, bỏ qua seed.');
+    console.log('⏭️  Dữ liệu chính đã tồn tại — chỉ đảm bảo trang nội dung footer.');
+    const r = await seedSitePages();
+    console.log(`   - Trang nội dung footer: ${r.pages}`);
     return;
   }
 
@@ -468,8 +471,11 @@ async function main() {
     },
   });
 
+  const pagesResult = await seedSitePages();
+
   console.log('✅ Seed thành công!');
   console.log(`📋 Dữ liệu được tạo:`);
+  console.log(`   - Trang nội dung footer: ${pagesResult.pages}`);
   console.log(`   - Phòng khám: ${clinic.name} (2 chi nhánh, ${rooms.length} phòng)`);
   console.log(`   - Chuyên khoa: ${specialties.length}`);
   console.log(`   - Bác sĩ: ${doctors.length} người`);
