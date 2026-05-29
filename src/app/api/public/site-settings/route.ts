@@ -6,5 +6,9 @@ export const GET = apiHandler(async () => {
   if (!s) {
     s = await prisma.siteSettings.create({ data: { id: "singleton" } })
   }
-  return sendSuccess(s)
+  // Kèm tên phòng khám để các trang công khai (login, header...) hiển thị đúng
+  const clinic = await prisma.clinic.findFirst({
+    select: { name: true, phone: true, email: true, address: true },
+  })
+  return sendSuccess({ ...s, clinicName: clinic?.name ?? null })
 })
