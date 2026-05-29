@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedSitePages } from './seed-pages';
+import { seedNavMenu } from './seed-nav';
 
 const prisma = new PrismaClient();
 
@@ -19,6 +20,7 @@ async function main() {
     console.log('⏭️  Dữ liệu chính đã tồn tại — chỉ đảm bảo trang nội dung footer.');
     const r = await seedSitePages();
     console.log(`   - Trang nội dung footer: ${r.pages}`);
+    await seedNavMenu();
     return;
   }
 
@@ -472,6 +474,7 @@ async function main() {
   });
 
   const pagesResult = await seedSitePages();
+  await seedNavMenu();
 
   console.log('✅ Seed thành công!');
   console.log(`📋 Dữ liệu được tạo:`);

@@ -11,6 +11,7 @@ import {
   Globe,
   FileText,
   ArrowRight,
+  Menu,
 } from 'lucide-react';
 
 export default function WebsiteHubPage() {
@@ -58,6 +59,13 @@ export default function WebsiteHubPage() {
       stat: featuredCount ?? '—',
       statLabel: 'sản phẩm',
       color: 'bg-purple-50 text-purple-700 border-purple-100',
+    },
+    {
+      href: '/website/menu',
+      icon: Menu,
+      title: 'Quản lý Menu',
+      desc: 'Danh mục và mục con hiển thị trên mega menu website',
+      color: 'bg-sky-50 text-sky-700 border-sky-100',
     },
     {
       href: '/website/pages',
