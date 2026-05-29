@@ -39,10 +39,12 @@ export default function Badge({ variant = 'gray', children, dot = false }: Badge
 
 export function AppointmentStatusBadge({ status }: { status: AppointmentStatus }) {
   const map: Record<AppointmentStatus, { variant: BadgeProps['variant']; label: string }> = {
-    'chờ khám': { variant: 'warning', label: 'Chờ khám' },
-    'đang khám': { variant: 'info', label: 'Đang khám' },
-    'hoàn thành': { variant: 'success', label: 'Hoàn thành' },
-    'hủy': { variant: 'danger', label: 'Đã hủy' },
+    PENDING:     { variant: 'warning', label: 'Chờ khám' },
+    CONFIRMED:   { variant: 'info',    label: 'Đã xác nhận' },
+    IN_PROGRESS: { variant: 'purple',  label: 'Đang khám' },
+    COMPLETED:   { variant: 'success', label: 'Hoàn thành' },
+    CANCELLED:   { variant: 'danger',  label: 'Đã hủy' },
+    NO_SHOW:     { variant: 'gray',    label: 'Không đến' },
   };
   const { variant, label } = map[status] || { variant: 'gray', label: status };
   return <Badge variant={variant} dot>{label}</Badge>;
