@@ -51,6 +51,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
   IN_PROGRESS: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300' },
   COMPLETED:   { bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-green-300' },
   CANCELLED:   { bg: 'bg-gray-100',   text: 'text-gray-500',   border: 'border-gray-300' },
+  NO_SHOW:     { bg: 'bg-red-50',     text: 'text-red-400',    border: 'border-red-200' },
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -59,6 +60,7 @@ const STATUS_LABELS: Record<string, string> = {
   IN_PROGRESS: 'Đang khám',
   COMPLETED: 'Hoàn thành',
   CANCELLED: 'Hủy',
+  NO_SHOW: 'Không đến',
 };
 
 // Generate time slots 07:00–18:00 every 15 min for picker, 30 min for calendar
@@ -311,7 +313,14 @@ export default function AppointmentsPage() {
   const createAppointment = useCreateAppointment();
   const updateStatus = useUpdateAppointmentStatus(selectedAppointment?.id || '');
 
-  const appointments = appointmentsData?.data || [];
+  const allAppointments = appointmentsData?.data || [];
+  const appointments = search
+    ? allAppointments.filter((apt: any) =>
+        apt.patient?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+        apt.appointmentCode?.toLowerCase().includes(search.toLowerCase()) ||
+        apt.doctor?.user?.fullName?.toLowerCase().includes(search.toLowerCase())
+      )
+    : allAppointments;
   const meta = appointmentsData?.meta;
   const calendarAppointments = calendarData?.data || [];
   const patients = patientsData?.data || [];
@@ -443,6 +452,7 @@ export default function AppointmentsPage() {
               <option value="IN_PROGRESS">Đang khám</option>
               <option value="COMPLETED">Hoàn thành</option>
               <option value="CANCELLED">Hủy</option>
+              <option value="NO_SHOW">Không đến</option>
             </select>
           </div>
 
@@ -498,6 +508,7 @@ export default function AppointmentsPage() {
                                 <option value="IN_PROGRESS">Đang khám</option>
                                 <option value="COMPLETED">Hoàn thành</option>
                                 <option value="CANCELLED">Hủy</option>
+                                <option value="NO_SHOW">Không đến</option>
                               </select>
                               <Link
                                 href={`/medical-records/new?appointmentId=${apt.id}&patientId=${apt.patientId}`}

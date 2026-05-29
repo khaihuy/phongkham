@@ -91,5 +91,5 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   })
 
-  return sendSuccess({ doctor }, 201)
+  return sendSuccess(doctor, 201)
 })

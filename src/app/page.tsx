@@ -93,10 +93,7 @@ function DoctorTodaySection() {
                   <p className="font-medium text-gray-900 truncate">{apt.patient.fullName}</p>
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="text-xs text-gray-500">
-                      {new Date(apt.scheduledDate).toLocaleTimeString('vi-VN', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {apt.scheduledTime}
                     </span>
                     {apt.room && (
                       <span className="text-xs text-gray-400">{apt.room.name}</span>

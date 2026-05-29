@@ -68,19 +68,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
   while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
     const timeStr = `${String(currentHour).padStart(2, "0")}:${String(currentMin).padStart(2, "0")}`
 
-    // Check if slot is available
+    // Check if slot overlaps with any existing appointment
+    const slotStartMin = currentHour * 60 + currentMin
+    const slotEndMin = slotStartMin + schedule.slotMinutes
     const isBooked = existingAppointments.some((apt) => {
-      const aptHour = parseInt(apt.scheduledTime.split(":")[0])
-      const aptMin = parseInt(apt.scheduledTime.split(":")[1])
-      const aptEnd = new Date()
-      aptEnd.setHours(aptHour, aptMin + apt.duration)
-
-      const slotEnd = new Date()
-      slotEnd.setHours(currentHour, currentMin + schedule.slotMinutes)
-
-      return (
-        currentHour === aptHour && currentMin === aptMin
-      )
+      const [aptH, aptM] = apt.scheduledTime.split(":").map(Number)
+      const aptStartMin = aptH * 60 + aptM
+      const aptEndMin = aptStartMin + apt.duration
+      return slotStartMin < aptEndMin && aptStartMin < slotEndMin
     })
 
     if (!isBooked) {
