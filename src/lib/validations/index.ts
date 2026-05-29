@@ -91,7 +91,7 @@ export const updateDoctorSchema = createDoctorSchema.partial()
 
 // Medical Records
 export const createMedicalRecordSchema = z.object({
-  appointmentId: z.string().min(1, "Cuộc hẹn không được để trống"),
+  appointmentId: z.string().optional(),
   patientId: z.string().min(1, "Bệnh nhân không được để trống"),
   doctorId: z.string().min(1, "Bác sĩ không được để trống"),
   visitDate: z.string().refine((d) => !isNaN(Date.parse(d)), "Ngày khám không hợp lệ"),
