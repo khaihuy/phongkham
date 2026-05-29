@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Stethoscope, Eye, EyeOff } from 'lucide-react';
@@ -73,6 +73,17 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const [clinicName, setClinicName] = useState('Phòng Khám');
+
+  useEffect(() => {
+    fetch('/api/public/site-settings')
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.data?.clinicName) setClinicName(j.data.clinicName);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -80,7 +91,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-sky-600 rounded-2xl mb-4 shadow-lg">
             <Stethoscope className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Phòng Khám An Khang</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{clinicName}</h1>
           <p className="text-gray-500 text-sm mt-1">Hệ thống quản lý phòng khám</p>
         </div>
         <div className="bg-white rounded-2xl shadow-xl p-8">
