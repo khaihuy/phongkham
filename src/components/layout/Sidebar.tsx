@@ -95,19 +95,19 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       >
         {/* Logo */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
-          <div className="flex items-center gap-3">
+          <Link href="/settings" className="flex items-center gap-3 group" title="Chỉnh sửa thông tin phòng khám">
             <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
               <Stethoscope className="w-5 h-5 text-primary-700" />
             </div>
             <div>
-              <p className="text-white font-bold text-sm leading-tight truncate max-w-[140px]">
+              <p className="text-white font-bold text-sm leading-tight truncate max-w-[140px] group-hover:underline">
                 {clinic?.name ?? 'Phòng Khám'}
               </p>
               <p className="text-primary-200 text-xs truncate max-w-[140px]">
                 {clinic?.address?.split(',').slice(-2).join(',').trim() ?? 'CRM'}
               </p>
             </div>
-          </div>
+          </Link>
           <button
             onClick={onClose}
             className="lg:hidden text-white/70 hover:text-white transition-colors"
