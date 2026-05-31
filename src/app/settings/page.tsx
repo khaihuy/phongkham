@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LogOut, User, Shield, Building2, Phone, Mail, MapPin, Globe, FileText, Hash, Save, Loader, DatabaseZap } from 'lucide-react';
+import { LogOut, User, Shield, Building2, Save, Loader, DatabaseZap, ImagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -31,6 +31,9 @@ export default function SettingsPage() {
     name: '', taxCode: '', phone: '', email: '',
     address: '', website: '', licenseNo: '',
   });
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (clinicData) {
@@ -43,8 +46,54 @@ export default function SettingsPage() {
         website: clinicData.website ?? '',
         licenseNo: clinicData.licenseNo ?? '',
       });
+      if (clinicData.logoUrl) setLogoPreview(clinicData.logoUrl);
     }
   }, [clinicData]);
+
+  async function handleLogoUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLogoUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const r = await fetch('/api/upload', { method: 'POST', body: form });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? 'Lỗi upload');
+
+      const url: string = j.data.url;
+      setLogoPreview(url);
+
+      // Persist logoUrl to clinic record
+      const pr = await fetch('/api/clinic', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logoUrl: url }),
+      });
+      if (!pr.ok) throw new Error('Lưu logo thất bại');
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+      toast.success('Đã cập nhật logo phòng khám');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLogoUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  async function handleLogoRemove() {
+    setLogoPreview(null);
+    const r = await fetch('/api/clinic', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logoUrl: '' }),
+    });
+    if (r.ok) {
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+      toast.success('Đã xóa logo');
+    }
+  }
 
   const [seedLoading, setSeedLoading] = useState(false);
 
@@ -124,6 +173,42 @@ export default function SettingsPage() {
               <Loader className="w-6 h-6 animate-spin text-sky-600" />
             </div>
           ) : (
+            <>
+            {/* Logo upload */}
+            <div className="flex items-center gap-5 pb-4 border-b border-gray-100">
+              <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {logoPreview ? (
+                  <>
+                    <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-1" />
+                    {isAdmin && (
+                      <button type="button" onClick={handleLogoRemove}
+                        className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <ImagePlus className="w-7 h-7 text-gray-300" />
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-gray-700">Logo phòng khám</p>
+                <p className="text-xs text-gray-400">JPG, PNG, WebP, GIF · tối đa 2MB</p>
+                {isAdmin && (
+                  <>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                      onChange={handleLogoUpload} disabled={logoUploading} />
+                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      disabled={logoUploading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                      {logoUploading ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+                      {logoUploading ? 'Đang tải...' : 'Chọn ảnh'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
             <form onSubmit={e => { e.preventDefault(); updateClinic.mutate(clinicForm); }} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
@@ -200,6 +285,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-gray-400 italic">Chỉ quản trị viên mới có thể chỉnh sửa thông tin phòng khám.</p>
               )}
             </form>
+            </>
           )}
         </div>
       )}
