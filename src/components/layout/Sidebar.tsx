@@ -94,8 +94,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* Logo */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-              <Stethoscope className="w-5 h-5 text-primary-700" />
+            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {clinic?.logoUrl ? (
+                <img src={clinic.logoUrl} alt="Logo" className="w-full h-full object-contain p-0.5" />
+              ) : (
+                <Stethoscope className="w-5 h-5 text-primary-700" />
+              )}
             </div>
             <div>
               <p className="text-white font-bold text-sm leading-tight truncate max-w-[140px]">
