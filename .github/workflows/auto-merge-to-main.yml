@@ -1,0 +1,39 @@
+name: Auto-merge Claude branches to main
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+
+permissions:
+  contents: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge into main
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          git checkout main
+          git pull origin main
+
+          if git merge --no-ff origin/"$BRANCH" -m "chore: merge $BRANCH into main [skip ci]"; then
+            git push origin main
+            echo "Merged $BRANCH into main successfully"
+          else
+            git merge --abort
+            echo "Merge conflict in $BRANCH — skipping auto-merge, manual resolution required"
+            exit 1
+          fi
